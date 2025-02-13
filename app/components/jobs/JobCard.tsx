@@ -183,47 +183,47 @@ export default function JobCard({ job, propertyName }: JobCardProps) {
 
         {/* Profile Toggle Section */}
         <div className="border-t pt-3">
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors"
-            onClick={() => setShowDetails(!showDetails)}
-          >
-            <span className="text-sm font-medium text-gray-600">Staff Details</span>
-            {showDetails ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </Button>
-          
-          {showDetails && (
-            <div className={cn(
-              "flex items-center gap-4 p-3 mt-2 bg-gray-50 rounded-lg",
-              "transform transition-all duration-200 ease-in-out"
-            )}>
-              <div className="relative h-10 w-10 flex-shrink-0 rounded-full overflow-hidden border-2 border-gray-100">
-                {job.profile_image ? (
-                  <LazyImage
-                    src={job.profile_image.profile_image}
-                    alt={job.user}
-                    className="rounded-full object-cover"
-                    isThumb={true}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center w-full h-full bg-gray-100">
-                    <User className="w-6 h-6 text-gray-400" />
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-gray-700">{job.user}</p>
-                <p className="text-sm text-gray-500">
-                  {job.profile_image?.positions || 'Staff'}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+  <Button
+    variant="ghost"
+    className="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors"
+    onClick={() => setShowDetails(!showDetails)}
+  >
+    <span className="text-sm font-medium text-gray-600">Staff Details</span>
+    {showDetails ? (
+      <ChevronUp className="w-4 h-4 text-gray-400" />
+    ) : (
+      <ChevronDown className="w-4 h-4 text-gray-400" />
+    )}
+  </Button>
+  
+  {showDetails && (
+    <div className={cn(
+      "flex items-center gap-4 p-3 mt-2 bg-gray-50 rounded-lg",
+      "transform transition-all duration-200 ease-in-out"
+    )}>
+      <div className="relative h-10 w-10 flex-shrink-0 rounded-full overflow-hidden border-2 border-gray-100">
+        {job.profile_image?.profile_image ? (
+          <LazyImage
+            src={job.profile_image.profile_image}
+            alt={`Profile picture of ${job.user}`}
+            className="rounded-full object-cover"
+            isThumb={true}
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-gray-100">
+            <User className="w-6 h-6 text-gray-400" />
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col">
+        <p className="text-sm font-semibold text-gray-700">{job.user}</p>
+        <p className="text-sm text-gray-500">
+          {job.profile_image?.positions || 'Staff'}
+        </p>
+      </div>
+    </div>
+  )}
+</div>
 
         {/* Timestamps Toggle Section */}
         <div className="border-t pt-3">

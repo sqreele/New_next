@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import {
   Dialog,
@@ -56,10 +58,10 @@ import {
   Trash2,
   Loader2
 } from 'lucide-react';
-import { useUser } from '@/app/lib/user-context';
-import { fetchJobsForProperty, updateJob, deleteJob } from '@/app/lib/data';
-import { Job, JobStatus, JobPriority } from '@/app/lib/types';
 import { useSession } from 'next-auth/react';
+import { useProperty } from '@/app/lib/PropertyContext';
+import { fetchJobsForProperty, updateJob, deleteJob } from '@/app/lib/data';
+import { Job } from '@/app/lib/types';
 
 // Constants
 const ITEMS_PER_PAGE = 5;
@@ -67,26 +69,59 @@ const MAX_VISIBLE_PAGES = 5;
 
 const PRIORITY_VARIANTS = {
   high: 'destructive',
-  medium: 'secondary',  // Changed from 'warning'
-  low: 'outline',      // Changed from 'secondary'
+  medium: 'secondary',
+  low: 'outline',
   default: 'default'
 } as const;
 
 const STATUS_VARIANTS = {
-  completed: 'outline',    // Changed from 'success'
-  in_progress: 'secondary', // Changed from 'warning'
-  pending: 'default',      // Changed from 'secondary'
+  completed: 'outline',
+  in_progress: 'secondary',
+  pending: 'default',
   cancelled: 'destructive',
+  waiting_sparepart: 'warning',
   default: 'default'
 } as const;
 
-// Types
-interface JobTableRowProps {
-  job: Job;
-  onEdit: (job: Job) => void;
-  onDelete: (job: Job) => void;
-}
+// Custom hooks
+const useJobsData = (propertyId: string | null, accessToken: string | undefined) => {
+  const [jobs, setJobs] = React.useState<Job[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    console.log('useJobsData effect:', { propertyId, hasAccessToken: !!accessToken });
+
+    const fetchJobs = async () => {
+      if (!propertyId || !accessToken) {
+        console.log('Missing propertyId or accessToken');
+        setJobs([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        const data = await fetchJobsForProperty(propertyId, accessToken);
+        console.log('Fetched jobs:', data);
+        setJobs(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching jobs:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
+        setJobs([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, [propertyId, accessToken]);
+
+  return { jobs, setJobs, isLoading, error };
+};
+
+// Components
 interface EditDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -95,98 +130,12 @@ interface EditDialogProps {
   isSubmitting: boolean;
 }
 
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
-
-// Subcomponents
-const JobTableHeader = () => (
-  <TableHeader>
-    <TableRow>
-      <TableHead className="w-[180px]">Job Details</TableHead>
-      <TableHead>Description</TableHead>
-      <TableHead>Location</TableHead>
-      <TableHead>Status</TableHead>
-      <TableHead>Created</TableHead>
-      <TableHead className="w-[100px]">Actions</TableHead>
-    </TableRow>
-  </TableHeader>
-);
-
-
-const JobTableRow: React.FC<JobTableRowProps> = ({ job, onEdit, onDelete }) => (
-  <TableRow key={job.job_id} className="cursor-pointer hover:bg-gray-50">
-    <TableCell>
-      <div className="space-y-1">
-        <div className=" text-xs">#{job.job_id}</div>
-        <Badge variant={PRIORITY_VARIANTS[job.priority as keyof typeof PRIORITY_VARIANTS]}>
-          {job.priority.charAt(0).toUpperCase() + job.priority.slice(1)}
-        </Badge>
-      </div>
-    </TableCell>
-    <TableCell>
-      <div className="max-w-[300px] space-y-1">
-        <p className="text-sm truncate">{job.description}</p>
-        {job.topics?.map((topic) => (
-          <Badge key={topic.id} variant="outline" className="text-xs">
-            {topic.title}
-          </Badge>
-        ))}
-      </div>
-    </TableCell>
-    <TableCell>
-      {job.rooms?.map((room) => (
-        <div key={room.room_id} className="flex items-center gap-1">
-          <Home className="h-4 w-4" />
-          {room.name}
-        </div>
-      ))}
-    </TableCell>
-    <TableCell>
-      <Badge variant={STATUS_VARIANTS[job.status as keyof typeof STATUS_VARIANTS]}>
-        {job.status.replace('_', ' ').charAt(0).toUpperCase() + job.status.replace('_', ' ').slice(1)}
-      </Badge>
-    </TableCell>
-    <TableCell>
-      {new Date(job.created_at).toLocaleDateString()}
-    </TableCell>
-    <TableCell>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(job);
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(job);
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </TableCell>
-  </TableRow>
-);
-
-const EditDialog: React.FC<EditDialogProps> = ({ 
-  isOpen, 
-  onClose, 
-  job, 
-  onSubmit, 
-  isSubmitting 
+const EditDialog: React.FC<EditDialogProps> = ({
+  isOpen,
+  onClose,
+  job,
+  onSubmit,
+  isSubmitting
 }) => (
   <Dialog open={isOpen} onOpenChange={onClose}>
     <DialogContent className="sm:max-w-[425px]">
@@ -258,12 +207,19 @@ const EditDialog: React.FC<EditDialogProps> = ({
   </Dialog>
 );
 
-const DeleteDialog: React.FC<{
+interface DeleteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   isSubmitting: boolean;
-}> = ({ isOpen, onClose, onConfirm, isSubmitting }) => (
+}
+
+const DeleteDialog: React.FC<DeleteDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isSubmitting
+}) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent>
       <AlertDialogHeader>
@@ -288,10 +244,16 @@ const DeleteDialog: React.FC<{
   </AlertDialog>
 );
 
-const JobsPagination: React.FC<PaginationProps> = ({ 
-  currentPage, 
-  totalPages, 
-  onPageChange 
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+const JobsPagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalPages,
+  onPageChange
 }) => {
   const renderPaginationItems = () => {
     const items: React.ReactNode[] = [];
@@ -310,6 +272,7 @@ const JobsPagination: React.FC<PaginationProps> = ({
         );
       }
     } else {
+      // Add pagination logic here similar to previous implementation
       // First page
       items.push(
         <PaginationItem key={1}>
@@ -355,16 +318,18 @@ const JobsPagination: React.FC<PaginationProps> = ({
       }
 
       // Last page
-      items.push(
-        <PaginationItem key={totalPages}>
-          <PaginationLink
-            onClick={() => onPageChange(totalPages)}
-            isActive={currentPage === totalPages}
-          >
-            {totalPages}
-          </PaginationLink>
-        </PaginationItem>
-      );
+      if (totalPages > 1) {
+        items.push(
+          <PaginationItem key={totalPages}>
+            <PaginationLink
+              onClick={() => onPageChange(totalPages)}
+              isActive={currentPage === totalPages}
+            >
+              {totalPages}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
     }
 
     return items;
@@ -391,39 +356,39 @@ const JobsPagination: React.FC<PaginationProps> = ({
   );
 };
 
-// Custom hooks
-const useJobsData = (selectedProperty: string | null, session: any, userProfile: any) => {
-  const [jobs, setJobs] = React.useState<Job[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+// Main component
+const MyJobs: React.FC = () => {
+  const { toast } = useToast();
+  const { data: session } = useSession();
+  const { selectedProperty } = useProperty();
 
-  React.useEffect(() => {
-    const fetchJobs = async () => {
-      if (!selectedProperty || !session?.user?.accessToken) return;
-      
-      try {
-        setIsLoading(true);
-        const jobsData = await fetchJobsForProperty(selectedProperty, session.user.accessToken);
-        const userJobs = jobsData.filter(job => userProfile?.username === job.user);
-        setJobs(userJobs);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  console.log('MyJobs render:', {
+    selectedProperty,
+    hasSession: !!session,
+    accessToken: session?.user?.accessToken ? 'present' : 'missing'
+  });
+  
+  const { jobs, setJobs, isLoading, error } = useJobsData(
+    selectedProperty,
+    session?.user?.accessToken
+  );
 
-    fetchJobs();
-  }, [selectedProperty, session?.user?.accessToken, userProfile?.username]);
-
-  return { jobs, setJobs, isLoading, error };
-};
-
-const usePagination = (totalItems: number, itemsPerPage: number) => {
   const [currentPage, setCurrentPage] = React.useState(1);
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(jobs.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, jobs.length);
+
+  // Memoize current jobs to prevent unnecessary recalculations
+  const currentJobs = React.useMemo(() => 
+    jobs.slice(startIndex, endIndex),
+    [jobs, startIndex, endIndex]
+  );
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -431,68 +396,44 @@ const usePagination = (totalItems: number, itemsPerPage: number) => {
     }
   };
 
-  return {
-    currentPage,
-    totalPages,
-    startIndex,
-    endIndex,
-    handlePageChange
-  };
-};
-
-// Main component
-const MyJobs: React.FC = () => {
-  const { toast } = useToast();
-  const { data: session } = useSession();
-  const { userProfile, selectedProperty, setSelectedProperty, loading: userLoading } = useUser();
-  
-  const { jobs, setJobs, isLoading, error } = useJobsData(selectedProperty, session, userProfile);
-  const { currentPage, totalPages, startIndex, endIndex, handlePageChange } = usePagination(jobs.length, ITEMS_PER_PAGE);
-
-  const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-
-  const currentJobs = jobs.slice(startIndex, endIndex);
-
-  // Initialize selected property if not set
-  React.useEffect(() => {
-    if (userProfile?.properties?.[0]?.property_id && !selectedProperty) {
-      setSelectedProperty(userProfile.properties[0].property_id);
-    }
-  }, [userProfile, selectedProperty, setSelectedProperty]);
-
   const handleEdit = (job: Job) => {
+    console.log('Editing job:', job);
     setSelectedJob(job);
     setIsEditDialogOpen(true);
   };
 
   const handleDelete = (job: Job) => {
+    console.log('Deleting job:', job);
     setSelectedJob(job);
     setIsDeleteDialogOpen(true);
   };
 
   const handleEditSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedJob || !session?.user?.accessToken) return;
+    if (!selectedJob || !session?.user?.accessToken) {
+      console.log('Edit submission failed:', {
+        hasSelectedJob: !!selectedJob,
+        hasAccessToken: !!session?.user?.accessToken
+      });
+      return;
+    }
   
     setIsSubmitting(true);
     try {
       const formData = new FormData(event.currentTarget);
       
-      const updatedJobData: Partial<Job> = {
+      const updatedJobData = {
         description: formData.get('description') as string,
-        priority: formData.get('priority') as JobPriority,
-        status: selectedJob.status,
+        priority: formData.get('priority') as Job['priority'],
         remarks: formData.get('remarks') as string || '',
         is_defective: formData.get('is_defective') === 'on',
-        topics: selectedJob.topics,
-        rooms: selectedJob.rooms,
-        property_id: selectedJob.property_id,
-        properties: selectedJob.properties
       };
-  
+
+      console.log('Updating job:', {
+        jobId: selectedJob.job_id,
+        updatedData: updatedJobData
+      });
+
       const updatedJob = await updateJob(
         selectedJob.job_id,
         updatedJobData,
@@ -511,6 +452,7 @@ const MyJobs: React.FC = () => {
       });
       setIsEditDialogOpen(false);
     } catch (error) {
+      console.error('Error updating job:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update job",
@@ -522,7 +464,13 @@ const MyJobs: React.FC = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedJob || !session?.user?.accessToken) return;
+    if (!selectedJob || !session?.user?.accessToken) {
+      console.log('Delete confirmation failed:', {
+        hasSelectedJob: !!selectedJob,
+        hasAccessToken: !!session?.user?.accessToken
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -536,6 +484,7 @@ const MyJobs: React.FC = () => {
       });
       setIsDeleteDialogOpen(false);
     } catch (error) {
+      console.error('Error deleting job:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete job",
@@ -546,20 +495,23 @@ const MyJobs: React.FC = () => {
     }
   };
 
-  if (userLoading || isLoading) {
+  if (!selectedProperty) {
     return (
-      <div className="flex items-center justify-center p-6">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2">Loading...</span>
+      <div className="p-6 text-center">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium">No Property Selected</h3>
+        <p className="text-muted-foreground mt-1">
+          Please select a property to view maintenance jobs
+        </p>
       </div>
     );
   }
 
-  if (!userProfile) {
+  if (isLoading) {
     return (
-      <div className="p-6 text-red-500 flex items-center">
-        <AlertCircle className="h-5 w-5 mr-2" />
-        Error: User profile not found
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading...</span>
       </div>
     );
   }
@@ -578,9 +530,9 @@ const MyJobs: React.FC = () => {
       <div className="flex flex-col gap-6 mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Maintenance Jobs</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Maintenance Jobs</h1>
             <p className="text-muted-foreground mt-1">
-              Viewing {jobs.length} maintenance request{jobs.length !== 1 ? 's' : ''} for {userProfile.username}
+              Viewing {jobs.length} maintenance request{jobs.length !== 1 ? 's' : ''}
             </p>
           </div>
           <Button className="flex items-center gap-2">
@@ -594,15 +546,75 @@ const MyJobs: React.FC = () => {
         <>
           <div className="border rounded-lg">
             <Table>
-              <JobTableHeader />
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[180px]">Job Details</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {currentJobs.map((job) => (
-                  <JobTableRow
-                    key={job.job_id}
-                    job={job}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                  <TableRow key={job.job_id}>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-xs">#{job.job_id}</div>
+                        <Badge variant={PRIORITY_VARIANTS[job.priority]}>
+                          {job.priority.charAt(0).toUpperCase() + job.priority.slice(1)}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[300px] space-y-1">
+                        <p className="text-sm truncate">{job.description}</p>
+                        {job.topics?.map((topic) => (
+                          <Badge key={topic.id} variant="outline" className="text-xs">
+                            {topic.title}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {job.rooms?.map((room) => (
+                        <div key={room.room_id} className="flex items-center gap-1">
+                          <Home className="h-4 w-4" />
+                          {room.name}
+                        </div>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANTS[job.status]}>
+                        {job.status.replace('_', ' ').charAt(0).toUpperCase() + 
+                         job.status.replace('_', ' ').slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(job.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(job)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDelete(job)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -638,9 +650,9 @@ const MyJobs: React.FC = () => {
         <div className="text-center p-12 border rounded-lg bg-background">
           <div className="flex flex-col items-center text-center">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No maintenance jobs found</h3>
+            <h3 className="text-lg font-medium">No Maintenance Jobs</h3>
             <p className="text-muted-foreground mt-1">
-              You haven't created any maintenance requests for this property
+              Create a new maintenance request to track repairs and issues
             </p>
           </div>
         </div>

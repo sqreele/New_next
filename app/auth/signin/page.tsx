@@ -1,38 +1,45 @@
-// app/auth/signin/page.tsx
 'use client';
 
-import { signIn } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { signIn } from 'next-auth/react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SignIn() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    if (!username || !password) {
+      setError('Please fill in both fields.');
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await signIn("credentials", {
-        username: formData.get("username"),
-        password: formData.get("password"),
+      const res = await signIn('credentials', {
+        username,
+        password,
         redirect: false,
       });
 
       if (res?.error) {
-        setError("Invalid credentials");
+        setError('Invalid credentials');
       } else {
-        router.push("/dashboard");
+        router.push('/dashboard');
         router.refresh();
       }
     } catch (error) {
       console.error(error); // Log the error for debugging
-      setError("Something went wrong");
+      setError('Something went wrong');
+    } finally {
+      setLoading(false); // Reset loading state
     }
   };
 
@@ -57,6 +64,8 @@ export default function SignIn() {
                 id="username"
                 name="username"
                 type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Username"
@@ -70,6 +79,8 @@ export default function SignIn() {
                 id="password"
                 name="password"
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
@@ -83,14 +94,24 @@ export default function SignIn() {
               disabled={loading}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
                 loading
-                  ? "bg-indigo-400"
-                  : "bg-indigo-600 hover:bg-indigo-700"
+                  ? 'bg-indigo-400'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
+
+        {/* Optional: Add Google Sign-In */}
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => signIn('google')}
+            className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Sign in with Google
+          </button>
+        </div>
       </div>
     </div>
   );

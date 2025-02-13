@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import GoogleProvider from "next-auth/providers/google"; // Import GoogleProvider
 import CredentialsProvider from "next-auth/providers/credentials";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import type { NextAuthOptions } from "next-auth";
@@ -11,6 +11,39 @@ const api = axios.create({
     'Accept': 'application/json'
   }
 });
+
+// Axios request logging (conditional on environment)
+api.interceptors.request.use(
+  (config) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`🌐 Making request to: ${config.url}`);
+    }
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Axios response logging (conditional on environment)
+api.interceptors.response.use(
+  (response) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`✅ Successful response from: ${response.config.url}`);
+    }
+    return response;
+  },
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      console.error(`❌ Response error for ${error.config?.url}:`, {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    return Promise.reject(error);
+  }
+);
 
 declare module "next-auth" {
   interface Session {
@@ -86,7 +119,7 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           if (axios.isAxiosError(error)) {
-            console.error("Auth Error:", {
+            console.error("Auth Error during token fetch:", {
               status: error.response?.status,
               data: error.response?.data,
               config: {
@@ -100,6 +133,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
       },
+    }),
+
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',  // Add fallback
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '', // Add fallback
     }),
   ],
   callbacks: {
@@ -117,13 +155,18 @@ export const authOptions: NextAuthOptions = {
 
       if (token.accessToken) {
         const currentTime = Math.floor(Date.now() / 1000);
-        const decoded = jwt.decode(token.accessToken as string);
 
-        if (decoded && typeof decoded === "object") {
-          const jwtPayload = decoded as JwtPayload;
-          const refreshThreshold = jwtPayload.exp ? jwtPayload.exp - 300 : 0;
+        // Ensure JWT_SECRET is defined
+        if (!process.env.JWT_SECRET) {
+          throw new Error("JWT_SECRET is not defined in environment variables.");
+        }
 
-          if (jwtPayload.exp && currentTime >= refreshThreshold) {
+        const decoded = jwt.verify(token.accessToken as string, process.env.JWT_SECRET) as JwtPayload;
+
+        if (decoded) {
+          const refreshThreshold = decoded.exp ? decoded.exp - 300 : 0;
+
+          if (decoded.exp && currentTime >= refreshThreshold) {
             try {
               const refreshResponse = await axios.post(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/v1/token/refresh/`,
@@ -135,6 +178,7 @@ export const authOptions: NextAuthOptions = {
               token.accessToken = refreshResponse.data.access;
               token.refreshToken = refreshResponse.data.refresh || token.refreshToken;
             } catch (error) {
+              console.error("Error refreshing token:", error);
               return { ...token, error: "RefreshTokenError" };
             }
           }
@@ -169,34 +213,5 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 };
-
-// Add request logging
-api.interceptors.request.use(
-  (config) => {
-    console.log(`🌐 Making request to: ${config.url}`);
-    return config;
-  },
-  (error) => {
-    console.error('Request error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Add response logging
-api.interceptors.response.use(
-  (response) => {
-    console.log(`✅ Successful response from: ${response.config.url}`);
-    return response;
-  },
-  (error) => {
-    if (axios.isAxiosError(error)) {
-      console.error(`❌ Response error for ${error.config?.url}:`, {
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    }
-    return Promise.reject(error);
-  }
-);
 
 export default authOptions;
