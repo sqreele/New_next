@@ -26,6 +26,7 @@ declare module 'next-auth' {
       refreshToken: string // Moved from Session to user object for better organization
     } & DefaultSession['user']
     expires: string
+    error?: string
   }
 
   /**
@@ -59,6 +60,7 @@ declare module 'next-auth/jwt' {
     exp?: number  // Add expiration time for JWT
     iat?: number  // Add issued at time for JWT
     jti?: string  // Add JWT ID
+    error?: string
   }
 }
 

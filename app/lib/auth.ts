@@ -1,8 +1,20 @@
-import GoogleProvider from "next-auth/providers/google"; // Import GoogleProvider
+import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import type { NextAuthOptions } from "next-auth";
 import axios from 'axios';
+
+// Enhanced types for better type safety
+interface AuthUser {
+  id: string;
+  username: string;
+  email: string;
+  profile_image: string;
+  positions: string;
+  properties: any[];
+  accessToken: string;
+  refreshToken: string;
+}
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -12,7 +24,7 @@ const api = axios.create({
   }
 });
 
-// Axios request logging (conditional on environment)
+// Add request/response interceptors
 api.interceptors.request.use(
   (config) => {
     if (process.env.NODE_ENV === "development") {
@@ -26,7 +38,6 @@ api.interceptors.request.use(
   }
 );
 
-// Axios response logging (conditional on environment)
 api.interceptors.response.use(
   (response) => {
     if (process.env.NODE_ENV === "development") {
@@ -47,28 +58,11 @@ api.interceptors.response.use(
 
 declare module "next-auth" {
   interface Session {
-    user: {
-      id: string;
-      username: string;
-      email: string;
-      profile_image: string;
-      positions: string;
-      properties: any[];
-      accessToken: string;
-      refreshToken: string;
-    }
+    user: AuthUser;
+    error?: string;
   }
 
-  interface User {
-    id: string;
-    username: string;
-    email: string;
-    profile_image: string;
-    positions: string;
-    properties: any[];
-    accessToken: string;
-    refreshToken: string;
-  }
+  interface User extends AuthUser {}
 }
 
 export const authOptions: NextAuthOptions = {
@@ -81,29 +75,20 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
-          console.error("Missing credentials");
-          return null;
+          throw new Error("Missing credentials");
         }
 
         try {
-          // Get JWT tokens
-          const tokenResponse = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/v1/token/`,
-            {
-              username: credentials.username,
-              password: credentials.password,
-            }
-          );
+          const tokenResponse = await api.post('/api/v1/token/', {
+            username: credentials.username,
+            password: credentials.password,
+          });
 
-          // Get user data using auth check
-          const authCheckResponse = await axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/check/`,
-            {
-              headers: {
-                Authorization: `Bearer ${tokenResponse.data.access}`
-              }
+          const authCheckResponse = await api.get('/api/v1/auth/check/', {
+            headers: {
+              Authorization: `Bearer ${tokenResponse.data.access}`
             }
-          );
+          });
 
           const { user } = authCheckResponse.data;
 
@@ -118,30 +103,55 @@ export const authOptions: NextAuthOptions = {
             properties: user.profile?.properties || [],
           };
         } catch (error) {
-          if (axios.isAxiosError(error)) {
-            console.error("Auth Error during token fetch:", {
-              status: error.response?.status,
-              data: error.response?.data,
-              config: {
-                url: error.config?.url,
-                method: error.config?.method
-              }
-            });
-          } else {
-            console.error("Unknown Error:", error);
-          }
+          console.error("Auth Error:", error);
           return null;
         }
       },
     }),
 
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',  // Add fallback
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '', // Add fallback
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ account, profile, user }) {
+      if (account?.provider === "google") {
+        try {
+          // Create or get user in your backend
+          const response = await api.post('/api/v1/auth/google/', {
+            access_token: account.access_token,
+            id_token: account.id_token,
+            email: profile?.email,
+          });
+
+          if (response.data) {
+            user.accessToken = response.data.access;
+            user.refreshToken = response.data.refresh;
+            // Add any other user data from your backend
+            return true;
+          }
+        } catch (error) {
+          console.error("Google auth error:", error);
+          return false;
+        }
+      }
+      return true;
+    },
+
+    async jwt({ token, user, account }) {
+      if (account?.provider === "google" && user) {
+        token.accessToken = user.accessToken;
+        token.refreshToken = user.refreshToken;
+      }
+
       if (user) {
         token.id = user.id;
         token.username = user.username;
@@ -156,32 +166,34 @@ export const authOptions: NextAuthOptions = {
       if (token.accessToken) {
         const currentTime = Math.floor(Date.now() / 1000);
 
-        // Ensure JWT_SECRET is defined
         if (!process.env.JWT_SECRET) {
-          throw new Error("JWT_SECRET is not defined in environment variables.");
+          throw new Error("JWT_SECRET is not defined");
         }
 
-        const decoded = jwt.verify(token.accessToken as string, process.env.JWT_SECRET) as JwtPayload;
-
-        if (decoded) {
+        try {
+          const decoded = jwt.verify(token.accessToken as string, process.env.JWT_SECRET) as JwtPayload;
           const refreshThreshold = decoded.exp ? decoded.exp - 300 : 0;
 
           if (decoded.exp && currentTime >= refreshThreshold) {
             try {
-              const refreshResponse = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/token/refresh/`,
-                {
-                  refresh: token.refreshToken
-                }
-              );
+              const refreshResponse = await api.post('/api/v1/token/refresh/', {
+                refresh: token.refreshToken
+              });
 
-              token.accessToken = refreshResponse.data.access;
-              token.refreshToken = refreshResponse.data.refresh || token.refreshToken;
+              return {
+                ...token,
+                accessToken: refreshResponse.data.access,
+                refreshToken: refreshResponse.data.refresh || token.refreshToken,
+                error: undefined
+              };
             } catch (error) {
-              console.error("Error refreshing token:", error);
+              console.error("Token refresh failed:", error);
               return { ...token, error: "RefreshTokenError" };
             }
           }
+        } catch (error) {
+          console.error("Token verification failed:", error);
+          return { ...token, error: "TokenVerificationError" };
         }
       }
 
@@ -200,11 +212,25 @@ export const authOptions: NextAuthOptions = {
         refreshToken: token.refreshToken as string,
       };
 
+      if (token.error) {
+        session.error = token.error;
+      }
+
       return session;
+    },
+
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith(baseUrl)) {
+        return url;
+      } else if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      return baseUrl;
     }
   },
   pages: {
     signIn: "/auth/signin",
+    error: "/auth/error",
   },
   session: {
     strategy: "jwt",

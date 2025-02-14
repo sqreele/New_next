@@ -79,7 +79,7 @@ const STATUS_VARIANTS = {
   in_progress: 'secondary',
   pending: 'default',
   cancelled: 'destructive',
-  waiting_sparepart: 'warning',
+  waiting_sparepart: 'secondary',
   default: 'default'
 } as const;
 
@@ -586,10 +586,9 @@ const MyJobs: React.FC = () => {
                       ))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_VARIANTS[job.status]}>
-                        {job.status.replace('_', ' ').charAt(0).toUpperCase() + 
-                         job.status.replace('_', ' ').slice(1)}
-                      </Badge>
+                      <Badge variant={STATUS_VARIANTS[job.status] || 'default'}>
+  {job.status.replace('_', ' ').charAt(0).toUpperCase() + job.status.replace('_', ' ').slice(1)}
+</Badge>
                     </TableCell>
                     <TableCell>
                       {new Date(job.created_at).toLocaleDateString()}
