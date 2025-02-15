@@ -4,7 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider } from '@/app/providers';
 import { Toaster } from '@/app/components/ui/toaster';
 import { UserProvider } from '@/app/lib/user-context';
-import { PropertyProvider } from './lib/PropertyContext'; // Import the correct provider
+import { PropertyProvider } from '@/app/lib/PropertyContext'; // Import the correct provider
 import './globals.css';
 
 // Initialize Inter font

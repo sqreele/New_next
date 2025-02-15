@@ -58,25 +58,25 @@ const SignIn = () => {
         if (res.error === 'CredentialsSignin') {
           setError({ message: 'Invalid username or password' });
         } else if (res.error.includes('JSON')) {
-          setError({ 
+          setError({
             message: 'Server communication error',
             code: 'JSON_PARSE_ERROR',
-            details: 'Please try again or contact support if the issue persists'
+            details: 'Please try again or contact support if the issue persists',
           });
         } else {
           setError({ message: res.error });
         }
       } else if (res.ok) {
-        router.push('/dashboard');
-        router.refresh();
+        // Use `router.replace` to prevent users from returning to login page
+        router.replace('/dashboard');
       } else {
         throw new Error('Authentication failed');
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      setError({ 
+      setError({
         message: 'An unexpected error occurred',
-        details: error instanceof Error ? error.message : 'Please try again later'
+        details: error instanceof Error ? error.message : 'Please try again later',
       });
     } finally {
       setLoading(false);
