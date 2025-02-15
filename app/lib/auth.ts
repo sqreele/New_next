@@ -24,21 +24,26 @@ interface GoogleProfile {
   email_verified: boolean;
 }
 
-// Environment variables
+// Environment variables with fallbacks
 const API_URL = typeof window === 'undefined'
-  ? process.env.NEXT_PRIVATE_API_URL || 'http://django-backend:8000'  // Use internal Docker network URL
-  : process.env.NEXT_PUBLIC_API_URL || 'https://pmcs.site';          // Use public URL for client-side
+  ? process.env.NEXT_PRIVATE_API_URL || 'http://django-backend:8000'
+  : process.env.NEXT_PUBLIC_API_URL || 'https://pmcs.site';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+// Ensure secrets are available
+const getSecrets = () => {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not defined in environment variables");
-}
+  if (!JWT_SECRET || !NEXTAUTH_SECRET) {
+    console.error('Missing required environment variables:', {
+      JWT_SECRET: !!JWT_SECRET,
+      NEXTAUTH_SECRET: !!NEXTAUTH_SECRET,
+    });
+    throw new Error("Required secrets are not defined in environment variables");
+  }
 
-if (!NEXTAUTH_SECRET) {
-  throw new Error("NEXTAUTH_SECRET is not defined in environment variables");
-}
+  return { JWT_SECRET, NEXTAUTH_SECRET };
+};
 
 // Create axios instance with environment-aware configuration
 const api = axios.create({
@@ -47,10 +52,10 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  timeout: 10000, // 10 second timeout
-  proxy: false,  // Disable proxy to ensure direct internal Docker network communication
+  timeout: 10000,
+  proxy: false,
   maxRedirects: 5,
-  validateStatus: (status) => status >= 200 && status < 500, // Handle all responses except server errors
+  validateStatus: (status) => status >= 200 && status < 500,
 });
 
 // Add request/response interceptors with timestamps
@@ -120,6 +125,17 @@ async function refreshAccessToken(token: any) {
   }
 }
 
+// Verify JWT token helper
+const verifyToken = (token: string): JwtPayload | null => {
+  try {
+    const { JWT_SECRET } = getSecrets();
+    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return null;
+  }
+};
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -134,13 +150,11 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Get tokens
           const tokenResponse = await api.post('/api/v1/token/', {
             username: credentials.username,
             password: credentials.password,
           });
 
-          // Verify user with token
           const authCheckResponse = await api.get('/api/v1/auth/check/', {
             headers: {
               Authorization: `Bearer ${tokenResponse.data.access}`
@@ -183,10 +197,10 @@ export const authOptions: NextAuthOptions = {
           username: profile.name,
           email: profile.email,
           profile_image: profile.picture,
-          positions: "User", // Default position for Google sign-in
-          properties: [],    // Default empty properties
-          accessToken: "",   // Will be set in signIn callback
-          refreshToken: "",  // Will be set in signIn callback
+          positions: "User",
+          properties: [],
+          accessToken: "",
+          refreshToken: "",
         };
       },
     })
@@ -208,7 +222,6 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (response.data) {
-            // Update user object with backend response
             user.accessToken = response.data.access;
             user.refreshToken = response.data.refresh;
             user.positions = response.data.positions || user.positions;
@@ -227,37 +240,30 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, account }) {
-      // Initial sign in
       if (account?.provider === "google" && user) {
         token.accessToken = user.accessToken;
         token.refreshToken = user.refreshToken;
       }
 
       if (user) {
-        token.id = user.id;
-        token.username = user.username;
-        token.email = user.email;
-        token.profile_image = user.profile_image;
-        token.positions = user.positions;
-        token.properties = user.properties;
-        token.accessToken = user.accessToken;
-        token.refreshToken = user.refreshToken;
+        Object.assign(token, {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          profile_image: user.profile_image,
+          positions: user.positions,
+          properties: user.properties,
+          accessToken: user.accessToken,
+          refreshToken: user.refreshToken,
+        });
       }
 
-      // Return previous token if the access token has not expired
       if (token.accessToken) {
         const currentTime = Math.floor(Date.now() / 1000);
+        const decoded = verifyToken(token.accessToken as string);
 
-        try {
-          const decoded = jwt.verify(token.accessToken as string, JWT_SECRET) as JwtPayload;
-          const refreshThreshold = decoded.exp ? decoded.exp - 300 : 0; // 5 minutes before expiry
-
-          if (decoded.exp && currentTime >= refreshThreshold) {
-            return refreshAccessToken(token);
-          }
-        } catch (error) {
-          console.error("Token verification failed:", error);
-          return { ...token, error: "TokenVerificationError" };
+        if (decoded?.exp && currentTime >= decoded.exp - 300) {
+          return refreshAccessToken(token);
         }
       }
 
@@ -284,12 +290,8 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      // Handle redirect URLs securely
-      if (url.startsWith(baseUrl)) {
-        return url;
-      } else if (url.startsWith("/")) {
-        return `${baseUrl}${url}`;
-      }
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
       return baseUrl;
     }
   },
@@ -304,7 +306,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
-  secret: NEXTAUTH_SECRET,
+  secret: getSecrets().NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 };
 
