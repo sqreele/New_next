@@ -1,37 +1,53 @@
-// Assuming this is the FileUpload component (`FileUpload.tsx`)
-
-import React from 'react';
+import React, { ChangeEvent, useRef } from 'react';
+import { Button } from '@/app/components/ui/button';
 
 export interface FileUploadProps {
-  files: File[];
-  onFileChange: (files: File[]) => void;
-  error: string;
-  touched: boolean;
+  onChange: (files: File[]) => void;
+  maxFiles?: number;
+  accept?: string;
+  disabled?: boolean;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ files, onFileChange, error, touched }) => {
-  // Handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = event.target.files;
-    if (selectedFiles) {
-      const filesArray = Array.from(selectedFiles);
-      onFileChange(filesArray);
+const FileUpload: React.FC<FileUploadProps> = ({
+  onChange,
+  maxFiles = 5,
+  accept = "image/*",
+  disabled = false,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > maxFiles) {
+      alert(`Maximum ${maxFiles} files allowed`);
+      return;
     }
+    onChange(files);
+  };
+
+  const handleClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
-    <div>
-      <input type="file" multiple onChange={handleFileChange} />
-      {touched && error && <p className="text-red-500 text-sm">{error}</p>}
-      <div className="mt-2">
-        {files.length > 0 && (
-          <ul>
-            {files.map((file, index) => (
-              <li key={index}>{file.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
+    <div className="space-y-4">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept={accept}
+        multiple={maxFiles > 1}
+        disabled={disabled}
+        className="hidden"
+      />
+      <Button
+        type="button"
+        onClick={handleClick}
+        disabled={disabled}
+        variant="outline"
+      >
+        Select Files
+      </Button>
     </div>
   );
 };

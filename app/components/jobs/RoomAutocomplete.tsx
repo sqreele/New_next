@@ -1,44 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
-import { Button } from "@/app/components/ui/button";
+import React, { useState, useEffect, useCallback } from 'react';
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/app/lib/utils";
+import { Button } from "@/app/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/app/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/app/components/ui/popover";
 
 interface Room {
   room_id: number;
   name: string;
   room_type: string;
-  properties: string[];
+  is_active: boolean;
+  created_at: string;
+  property: number;
+  properties: (string | number)[];
 }
 
 interface RoomAutocompleteProps {
   selectedRoom: Room;
+  rooms: Room[];
   onSelect: (room: Room) => void;
-  rooms?: Room[];
   disabled?: boolean;
-  placeholder?: string;
 }
 
-export default function RoomAutocomplete({
-  selectedRoom,
+export default function RoomAutocomplete({ 
+  selectedRoom, 
+  rooms, 
   onSelect,
-  rooms = [],
-  disabled = false,
-  placeholder = "Select room..."
+  disabled = false 
 }: RoomAutocompleteProps) {
-  // Log the rooms prop to check its value
-  console.log('Rooms prop in RoomAutocomplete:', rooms);
-
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>(rooms);
 
-  const filteredRooms = rooms.filter((room) =>
-    room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    room.room_type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Debug logging
+  useEffect(() => {
+    console.log('RoomAutocomplete received rooms:', rooms);
+    console.log('RoomAutocomplete selected room:', selectedRoom);
+  }, [rooms, selectedRoom]);
+
+  const handleSelect = useCallback((currentRoom: Room) => {
+    console.log('Selected room:', currentRoom);
+    onSelect(currentRoom);
+    setOpen(false);
+  }, [onSelect]);
+
+  const handleSearch = useCallback((search: string) => {
+    const filtered = rooms.filter(room => 
+      room.name.toLowerCase().includes(search.toLowerCase()) ||
+      room.room_type.toLowerCase().includes(search.toLowerCase())
+    );
+    console.log('Filtered rooms:', filtered);
+    setFilteredRooms(filtered);
+  }, [rooms]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -47,54 +71,41 @@ export default function RoomAutocomplete({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          className="w-full justify-between"
           disabled={disabled}
-          className={cn(
-            "w-full justify-between",
-            !selectedRoom?.name && "text-muted-foreground"
-          )}
         >
-          {selectedRoom?.name 
-            ? `${selectedRoom.name} - ${selectedRoom.room_type}` 
-            : placeholder}
+          {selectedRoom?.name || "Select room..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command shouldFilter={false}>
+      <PopoverContent className="w-full p-0">
+        <Command>
           <CommandInput 
             placeholder="Search rooms..." 
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            className="h-9"
+            onValueChange={handleSearch}
           />
-          <CommandList>
-            <CommandEmpty>No rooms found</CommandEmpty>
-            <CommandGroup>
-              {filteredRooms.map((room) => (
-                <CommandItem
-                  key={room.room_id}
-                  value={room.name}
-                  onSelect={() => {
-                    onSelect(room);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedRoom?.room_id === room.room_id 
-                        ? "opacity-100" 
-                        : "opacity-0"
-                    )}
-                  />
-                  <span>{room.name}</span>
-                  <span className="ml-2 text-muted-foreground">
-                    - {room.room_type}
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
+          <CommandEmpty>No room found.</CommandEmpty>
+          <CommandGroup className="max-h-60 overflow-y-auto">
+            {filteredRooms.map((room) => (
+              <CommandItem
+                key={room.room_id}
+                value={room.name}
+                onSelect={() => handleSelect(room)}
+                className="cursor-pointer"
+              >
+                <Check
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    selectedRoom?.room_id === room.room_id ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                <div>
+                  <div>{room.name}</div>
+                  <div className="text-sm text-gray-500">{room.room_type}</div>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
         </Command>
       </PopoverContent>
     </Popover>
