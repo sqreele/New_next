@@ -209,3 +209,20 @@ function formatError(error: unknown): Error {
   }
   return error instanceof Error ? error : new Error('An unexpected error occurred');
 }
+
+export async function createJob(formData: FormData, accessToken: string): Promise<Job> {
+  try {
+    const response = await retryOperation(() =>
+      axiosInstance.post<Job>('/api/jobs/', formData, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        withCredentials: true,
+      })
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error creating job:', error);
+    throw formatError(error);
+  }
+}

@@ -13,8 +13,8 @@ import { Label } from '@/app/components/ui/label';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import RoomAutocomplete from '@/app/components/jobs/RoomAutocomplete';
-import FileUpload, { FileUploadProps } from '@/app/components/jobs/FileUpload';
-import { jobsApi, roomsApi } from '@/app/lib/api';
+import FileUpload from '@/app/components/jobs/FileUpload';
+import { fetchRooms, createJob } from '@/app/lib/data';
 import { Loader2 } from "lucide-react";
 
 interface Room {
@@ -64,9 +64,7 @@ const initialValues: FormValues = {
 };
 
 const validationSchema = Yup.object().shape({
-  description: Yup.string()
-    .required('Description is required')
-    .min(10, 'Description must be at least 10 characters'),
+  description: Yup.string().required('Description is required').min(10, 'Description must be at least 10 characters'),
   status: Yup.string().required('Status is required'),
   priority: Yup.string().required('Priority is required'),
   remarks: Yup.string().nullable(),
@@ -77,9 +75,7 @@ const validationSchema = Yup.object().shape({
   room: Yup.object().shape({
     room_id: Yup.number().required('Room must be selected').min(1, 'Please select a valid room'),
   }),
-  files: Yup.array()
-    .min(1, 'At least one image is required')
-    .max(5, 'Maximum 5 images allowed'),
+  files: Yup.array().min(1, 'At least one image is required').max(5, 'Maximum 5 images allowed'),
   is_defective: Yup.boolean(),
 });
 
@@ -91,8 +87,11 @@ export default function CreateJobPage() {
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   useEffect(() => {
-    const fetchRooms = async () => {
+    const loadRooms = async () => {  // Renamed function to avoid conflict
+      console.log('Current session:', session);
+
       if (!session?.user?.accessToken) {
+        console.warn('No access token available');
         setError('Authentication required');
         setIsLoadingRooms(false);
         return;
@@ -100,16 +99,17 @@ export default function CreateJobPage() {
 
       try {
         setIsLoadingRooms(true);
-        console.log('Fetching rooms with token:', session.user.accessToken);
-        const fetchedRooms = await roomsApi.fetch('', session.user.accessToken);
-        console.log('API Response:', fetchedRooms);
-        
+        const token = session.user.accessToken;
+
+        // Use the imported fetchRooms function
+        const fetchedRooms = await fetchRooms('', token); // Ensure correct arguments
+        console.log('Fetched rooms:', fetchedRooms);
+
         if (Array.isArray(fetchedRooms)) {
-          console.log('Setting rooms:', fetchedRooms);
           setRooms(fetchedRooms);
         } else {
-          console.error('Invalid rooms data format:', fetchedRooms);
-          throw new Error('Invalid rooms data format');
+          console.error('Invalid rooms data format');
+          setRooms([]);
         }
       } catch (error) {
         console.error('Error fetching rooms:', error);
@@ -119,7 +119,7 @@ export default function CreateJobPage() {
       }
     };
 
-    fetchRooms();
+    loadRooms(); // Call the renamed function
   }, [session?.user?.accessToken]);
 
   const handleSubmit = async (values: FormValues, { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }) => {
@@ -132,23 +132,19 @@ export default function CreateJobPage() {
       setError(null);
       const formData = new FormData();
 
-      // Handle file uploads
       values.files.forEach((file, index) => {
         formData.append(`images[${index}]`, file);
       });
 
-      // Handle nested objects
       formData.append('topic', JSON.stringify(values.topic));
       formData.append('room', JSON.stringify(values.room));
-
-      // Handle primitive values
       formData.append('description', values.description);
       formData.append('status', values.status);
       formData.append('priority', values.priority);
       formData.append('remarks', values.remarks || '');
       formData.append('is_defective', String(values.is_defective));
 
-      await jobsApi.create(formData, session.user.accessToken);
+      await createJob(formData, session.user.accessToken);
       router.push('/jobs');
       router.refresh();
     } catch (err) {
@@ -167,8 +163,6 @@ export default function CreateJobPage() {
     );
   }
 
-  console.log('Rendering with rooms:', rooms);
-
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Card>
@@ -182,124 +176,30 @@ export default function CreateJobPage() {
             </Alert>
           )}
 
-          <Formik
-            initialValues={initialValues}
-            validationSchema={validationSchema}
-            onSubmit={handleSubmit}
-          >
+          <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
             {({ values, errors, touched, setFieldValue, isSubmitting }) => (
               <Form className="space-y-6">
                 <div>
                   <Label htmlFor="description">Description</Label>
-                  <Field
-                    as={Textarea}
-                    id="description"
-                    name="description"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  />
-                  {touched.description && errors.description && (
-                    <p className="text-red-500 text-sm mt-1">{String(errors.description)}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="topic.title">Topic Title</Label>
-                  <Field
-                    name="topic.title"
-                    type="text"
-                    className="w-full p-2 border rounded"
-                    disabled={isSubmitting}
-                  />
-                  {touched.topic?.title && errors.topic?.title && (
-                    <p className="text-red-500 text-sm mt-1">{String(errors.topic.title)}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="priority">Priority</Label>
-                  <Field name="priority">
-                    {({ field }: FieldProps) => (
-                      <Select
-                        onValueChange={(value) => setFieldValue('priority', value)}
-                        value={field.value}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </Field>
-                  {touched.priority && errors.priority && (
-                    <p className="text-red-500 text-sm mt-1">{String(errors.priority)}</p>
-                  )}
+                  <Field as={Textarea} id="description" name="description" className="w-full" disabled={isSubmitting} />
+                  {touched.description && errors.description && <p className="text-red-500 text-sm mt-1">{String(errors.description)}</p>}
                 </div>
 
                 <div>
                   <Label>Room</Label>
-                  <RoomAutocomplete
-                    selectedRoom={values.room}
-                    rooms={rooms}
-                    onSelect={(room) => setFieldValue('room', room)}
-                    disabled={isSubmitting}
-                  />
-                  {touched.room?.room_id && errors.room?.room_id && (
-                    <p className="text-red-500 text-sm mt-1">{String(errors.room.room_id)}</p>
-                  )}
+                  <RoomAutocomplete selectedRoom={values.room} rooms={rooms} onSelect={(room) => setFieldValue('room', room)} disabled={isSubmitting} />
+                  {touched.room?.room_id && errors.room?.room_id && <p className="text-red-500 text-sm mt-1">{String(errors.room.room_id)}</p>}
                 </div>
 
                 <div>
                   <Label>Images</Label>
-                  <FileUpload
-                    onChange={(files) => setFieldValue('files', files)}
-                    maxFiles={5}
-                    accept="image/*"
-                    disabled={isSubmitting}
-                  />
-                  {touched.files && errors.files && (
-                    <p className="text-red-500 text-sm mt-1">{String(errors.files)}</p>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="is_defective"
-                    checked={values.is_defective}
-                    onCheckedChange={(checked) => setFieldValue('is_defective', checked)}
-                    disabled={isSubmitting}
-                  />
-                  <Label htmlFor="is_defective">Mark as defective</Label>
-                </div>
-
-                <div>
-                  <Label htmlFor="remarks">Remarks</Label>
-                  <Field
-                    as={Textarea}
-                    id="remarks"
-                    name="remarks"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  />
+                  <FileUpload onChange={(files) => setFieldValue('files', files)} maxFiles={5} accept="image/*" disabled={isSubmitting} />
+                  {touched.files && errors.files && <p className="text-red-500 text-sm mt-1">{String(errors.files)}</p>}
                 </div>
 
                 <div className="flex justify-end space-x-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.back()}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Creating...' : 'Create Job'}
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+                  <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Job'}</Button>
                 </div>
               </Form>
             )}
