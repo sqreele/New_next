@@ -1,8 +1,8 @@
-//component/jobs/CreateJobForm.tsx
+//Create/page.tsx
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Formik, Form } from 'formik';
@@ -16,9 +16,7 @@ import { Checkbox } from '@/app/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import RoomAutocomplete from '@/app/components/jobs/RoomAutocomplete';
 import FileUpload from '@/app/components/jobs/FileUpload';
-import { jobsApi, roomsApi } from '@/app/lib/api';
-import { Room } from '@/app/lib/types';
-import { Loader2 } from "lucide-react";
+import { jobsApi } from '@/app/lib/api';
 
 interface FormValues {
   description: string;
@@ -29,7 +27,12 @@ interface FormValues {
     title: string;
     description: string;
   };
-  room: Room;
+  room: {
+    room_id: number;
+    name: string;
+    room_type: string;
+    properties: string[];
+  };
   files: File[];
   is_defective: boolean;
 }
@@ -47,15 +50,11 @@ const initialValues: FormValues = {
     room_id: 0,
     name: '',
     room_type: '',
-    is_active: false,      // ✅ Add default value
-    created_at: '',        // ✅ Add default value
-    property: 0,           // ✅ Add default value
-    properties: [],        // ✅ Ensure type compatibility
+    properties: [],
   },
   files: [],
   is_defective: false,
 };
-
 
 const validationSchema = Yup.object().shape({
   description: Yup.string().required('Description is required'),
@@ -78,28 +77,6 @@ export default function CreateJobPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
-
-  useEffect(() => {
-    const fetchRooms = async () => {
-      if (session?.user?.accessToken) {
-        try {
-          setIsLoadingRooms(true);
-          const fetchedRooms = await roomsApi.fetch('', session.user.accessToken);
-
-          setRooms(fetchedRooms);
-        } catch (error) {
-          console.error('Error fetching rooms:', error);
-          setError('Failed to load rooms');
-        } finally {
-          setIsLoadingRooms(false);
-        }
-      }
-    };
-
-    fetchRooms();
-  }, [session?.user?.accessToken]);
 
   const handleSubmit = async (values: FormValues) => {
     if (!session?.user?.accessToken) {
@@ -137,14 +114,6 @@ export default function CreateJobPage() {
     }
   };
 
-  if (isLoadingRooms) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Card>
@@ -165,26 +134,86 @@ export default function CreateJobPage() {
           >
             {({ values, errors, touched, setFieldValue, isSubmitting }) => (
               <Form className="space-y-6">
-                {/* ... other form fields remain the same ... */}
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={values.description}
+                    onChange={(e) => setFieldValue('description', e.target.value)}
+                    className={touched.description && errors.description ? 'border-red-500' : ''}
+                  />
+                  {touched.description && errors.description && (
+                    <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Status</Label>
+                    <Select
+                      value={values.status}
+                      onValueChange={(value) => setFieldValue('status', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="waiting_sparepart">Waiting Sparepart</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Priority</Label>
+                    <Select
+                      value={values.priority}
+                      onValueChange={(value) => setFieldValue('priority', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
                 <div>
                   <Label>Room</Label>
-                                        // Assuming the room data comes from the 'rooms' state and is selected from the RoomAutocomplete
-                      <RoomAutocomplete
-                        selectedRoom={{ ...values.room, properties: values.room.properties.map(String) }}
-                        rooms={rooms.map(r => ({ ...r, properties: r.properties.map(String) }))}
-                        onSelect={(selectedRoom) => setFieldValue('room', selectedRoom)} // Setting the selected room
-                        disabled={isSubmitting}
-                      />
-
-
-
+                  <RoomAutocomplete
+                    selectedRoom={values.room}
+                    onSelect={(room) => setFieldValue('room', room)}
+                  />
                   {touched.room?.room_id && errors.room?.room_id && (
                     <p className="text-red-500 text-sm mt-1">{errors.room.room_id}</p>
                   )}
                 </div>
 
-                {/* ... rest of your form fields ... */}
+                <div>
+                  <Label>Images</Label>
+                  <FileUpload
+                    onFileSelect={(files) => setFieldValue('files', files)}
+                    error={errors.files as string}
+                    touched={!!touched.files} // Convert to boolean
+                    />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_defective"
+                    checked={values.is_defective}
+                    onCheckedChange={(checked) => setFieldValue('is_defective', checked)}
+                  />
+                  <Label htmlFor="is_defective">Mark as defective</Label>
+                </div>
 
                 <div className="flex justify-end space-x-4">
                   <Button

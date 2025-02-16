@@ -12,7 +12,8 @@ import {
   Settings,
   ShoppingCart,
   Users2,
-  Search
+  Search,
+  Plus
 } from 'lucide-react';
 import {
   Breadcrumb,
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/dashboard/myJobs", label: "MyJobs", icon: ShoppingCart },
   { href: "/dashboard/chartdashboad", label: "Chart Dashboard", icon: Package },
   { href: "/dashboard/profile", label: "Profile", icon: Users2 },
+  { href: "/dashboard/createjob", label: "CreateJobs", icon: Plus },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings }
 ];

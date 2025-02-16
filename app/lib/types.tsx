@@ -33,7 +33,8 @@ export interface Room {
   is_active: boolean;
   created_at: string;
   property: number;
-  properties: number[];
+  properties: (string | number)[];
+  
 
 }
 
@@ -185,4 +186,8 @@ export interface RegisterFormData {
   message: string;
   field?: string;
  }
- 
+ // Search types
+export interface SearchResponse {
+  jobs: Job[];
+  properties: Property[];
+}

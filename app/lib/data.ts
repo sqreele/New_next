@@ -1,3 +1,5 @@
+//lib/data.ts
+
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { Job, Property } from '@/app/lib/types';
 import { Room } from '@/app/lib/types';

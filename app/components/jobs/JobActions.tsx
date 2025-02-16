@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, FileDown, Filter, SortAsc, SortDesc, Building } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import CreateJobButton from "@/app/components/jobs/CreateJobButton";
+import CreateJobs from '@/app/components/jobs/CreateJobs';
 import { pdf } from "@react-pdf/renderer";
 import { saveAs } from "file-saver";
 import JobsPDFDocument from "@/app/components/ducument/JobsPDFGenerator";
@@ -160,7 +160,7 @@ export default function JobActions({
           {isGenerating ? "Generating..." : `Export PDF (${filteredJobsCount} jobs)`}
         </Button>
 
-        <CreateJobButton onJobCreated={handleRefresh} />
+        <CreateJobs onJobCreated={handleRefresh} />
       </div>
 
       
