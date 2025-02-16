@@ -1,5 +1,3 @@
-//component/jobs/CreateJobForm.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +10,6 @@ import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { Label } from '@/app/components/ui/label';
-import { Checkbox } from '@/app/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import RoomAutocomplete from '@/app/components/jobs/RoomAutocomplete';
 import FileUpload from '@/app/components/jobs/FileUpload';
@@ -47,15 +44,14 @@ const initialValues: FormValues = {
     room_id: 0,
     name: '',
     room_type: '',
-    is_active: false,      // ✅ Add default value
-    created_at: '',        // ✅ Add default value
-    property: 0,           // ✅ Add default value
-    properties: [],        // ✅ Ensure type compatibility
+    is_active: false,
+    created_at: '',
+    property: 0,
+    properties: [],
   },
   files: [],
   is_defective: false,
 };
-
 
 const validationSchema = Yup.object().shape({
   description: Yup.string().required('Description is required'),
@@ -87,7 +83,6 @@ export default function CreateJobPage() {
         try {
           setIsLoadingRooms(true);
           const fetchedRooms = await roomsApi.fetch('', session.user.accessToken);
-
           setRooms(fetchedRooms);
         } catch (error) {
           console.error('Error fetching rooms:', error);
@@ -111,18 +106,14 @@ export default function CreateJobPage() {
       setError(null);
       const formData = new FormData();
 
-      // Handling file uploads
       if (values.files && Array.isArray(values.files)) {
         values.files.forEach(file => {
           formData.append('images', file);
         });
       }
 
-      // Handling objects (topic and room)
       formData.append('topic', JSON.stringify(values.topic));
       formData.append('room', JSON.stringify(values.room));
-
-      // Handling primitive values
       formData.append('description', values.description);
       formData.append('status', values.status);
       formData.append('priority', values.priority);
@@ -169,16 +160,12 @@ export default function CreateJobPage() {
 
                 <div>
                   <Label>Room</Label>
-                                        // Assuming the room data comes from the 'rooms' state and is selected from the RoomAutocomplete
-                      <RoomAutocomplete
-                        selectedRoom={{ ...values.room, properties: values.room.properties.map(String) }}
-                        rooms={rooms.map(r => ({ ...r, properties: r.properties.map(String) }))}
-                        onSelect={(selectedRoom) => setFieldValue('room', selectedRoom)} // Setting the selected room
-                        disabled={isSubmitting}
-                      />
-
-
-
+                  <RoomAutocomplete
+                    selectedRoom={{ ...values.room, properties: values.room.properties.map(String) }}
+                    rooms={rooms.map(r => ({ ...r, properties: r.properties.map(String) }))}
+                    onSelect={(selectedRoom) => setFieldValue('room', selectedRoom)}
+                    disabled={isSubmitting}
+                  />
                   {touched.room?.room_id && errors.room?.room_id && (
                     <p className="text-red-500 text-sm mt-1">{errors.room.room_id}</p>
                   )}

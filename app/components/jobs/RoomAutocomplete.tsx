@@ -29,6 +29,9 @@ export default function RoomAutocomplete({
   disabled = false,
   placeholder = "Select room..."
 }: RoomAutocompleteProps) {
+  // Log the rooms prop to check its value
+  console.log('Rooms prop in RoomAutocomplete:', rooms);
+
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
