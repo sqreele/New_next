@@ -87,7 +87,7 @@ export default function CreateJobPage() {
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   useEffect(() => {
-    const loadRooms = async () => {  // Renamed function to avoid conflict
+    const loadRooms = async () => {
       console.log('Current session:', session);
 
       if (!session?.user?.accessToken) {
@@ -99,10 +99,9 @@ export default function CreateJobPage() {
 
       try {
         setIsLoadingRooms(true);
-        const token = session.user.accessToken;
 
-        // Use the imported fetchRooms function
-        const fetchedRooms = await fetchRooms('', token); // Ensure correct arguments
+        // Fetch rooms without passing the token directly
+        const fetchedRooms = await fetchRooms();
         console.log('Fetched rooms:', fetchedRooms);
 
         if (Array.isArray(fetchedRooms)) {
@@ -119,7 +118,7 @@ export default function CreateJobPage() {
       }
     };
 
-    loadRooms(); // Call the renamed function
+    loadRooms();
   }, [session?.user?.accessToken]);
 
   const handleSubmit = async (values: FormValues, { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }) => {
@@ -144,7 +143,7 @@ export default function CreateJobPage() {
       formData.append('remarks', values.remarks || '');
       formData.append('is_defective', String(values.is_defective));
 
-      await createJob(formData, session.user.accessToken);
+      await createJob(formData);
       router.push('/jobs');
       router.refresh();
     } catch (err) {

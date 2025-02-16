@@ -1,9 +1,23 @@
 // middleware.ts
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { JWT } from "next-auth/jwt";
+
+interface CustomToken extends JWT {
+  accessTokenExpires?: number;
+  error?: string;
+}
 
 export default withAuth(
   function middleware(req) {
+    // Get token and type it properly
+    const token = req.nextauth.token as CustomToken;
+
+    // Check for refresh token error
+    if (token?.error === "RefreshAccessTokenError") {
+      return NextResponse.redirect(new URL("/signin", req.url));
+    }
+
     return NextResponse.next();
   },
   {
@@ -16,11 +30,10 @@ export default withAuth(
   }
 );
 
-// Protect these routes
 export const config = {
   matcher: [
     "/dashboard/:path*",
     "/profile/:path*",
-    // Add more protected routes here
+    "/jobs/:path*",
   ]
 };

@@ -1,8 +1,7 @@
-//lib/data.ts
-
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { Job, Property } from '@/app/lib/types';
-import { Room } from '@/app/lib/types';
+import { getSession, signOut } from 'next-auth/react';
+import { Job, Property, Room } from '@/app/lib/types';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
@@ -21,9 +20,13 @@ const axiosInstance: AxiosInstance = axios.create({
   },
 });
 
-// Add request interceptor for logging
+// Add request interceptor for logging and authentication
 axiosInstance.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    const session = await getSession();
+    if (session?.user?.accessToken) {
+      config.headers.Authorization = `Bearer ${session.user.accessToken}`;
+    }
     console.log(`🌐 Making request to: ${config.baseURL}${config.url}`);
     return config;
   },
@@ -33,18 +36,48 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Add response interceptor for logging
+// Add response interceptor for error handling and token refresh
 axiosInstance.interceptors.response.use(
   (response) => {
     console.log(`✅ Successful response from: ${response.config.url}`);
     return response;
   },
-  (error: AxiosError) => {
-    console.error(`❌ Response error for ${error.config?.url}:`, {
+  async (error: AxiosError) => {
+    const originalRequest = error.config;
+    
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    console.error(`❌ Response error for ${originalRequest.url}:`, {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
     });
+
+    // Handle 401 error and token refresh
+    if (error.response?.status === 401 && !(originalRequest as any)._retry) {
+      (originalRequest as any)._retry = true;
+
+      try {
+        const session = await getSession();
+        if (session?.error === "RefreshAccessTokenError") {
+          await signOut({ redirect: true, callbackUrl: "/signin" });
+          return Promise.reject(new Error('Session expired. Please sign in again.'));
+        }
+
+        const newSession = await getSession();
+        if (newSession?.user?.accessToken) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newSession.user.accessToken}`;
+          return axiosInstance(originalRequest);
+        }
+      } catch (refreshError) {
+        await signOut({ redirect: true, callbackUrl: "/signin" });
+        return Promise.reject(new Error('Failed to refresh authentication.'));
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -67,11 +100,11 @@ async function retryOperation<T>(
   }
 }
 
-export async function fetchJobs(accessToken?: string): Promise<Job[]> {
+// API Functions
+export async function fetchJobs(): Promise<Job[]> {
   try {
-    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
     const response = await retryOperation(() =>
-      axiosInstance.get<Job[]>('/api/jobs/', { headers })
+      axiosInstance.get<Job[]>('/api/jobs/')
     );
     return response.data;
   } catch (error) {
@@ -80,11 +113,10 @@ export async function fetchJobs(accessToken?: string): Promise<Job[]> {
   }
 }
 
-export async function fetchProperties(accessToken?: string): Promise<Property[]> {
+export async function fetchProperties(): Promise<Property[]> {
   try {
-    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
     const response = await retryOperation(() =>
-      axiosInstance.get<Property[]>('/api/properties/', { headers })
+      axiosInstance.get<Property[]>('/api/properties/')
     );
     return response.data;
   } catch (error) {
@@ -93,16 +125,25 @@ export async function fetchProperties(accessToken?: string): Promise<Property[]>
   }
 }
 
-export async function fetchJobsForProperty(
-  propertyId: string,
-  accessToken: string
-): Promise<Job[]> {
+export async function fetchRooms(query: string = ''): Promise<Room[]> {
+  try {
+    const response = await retryOperation(() =>
+      axiosInstance.get<Room[]>('/api/rooms/', {
+        params: { search: query },
+      })
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    return [];
+  }
+}
+
+export async function fetchJobsForProperty(propertyId: string): Promise<Job[]> {
   try {
     const response = await retryOperation(() =>
       axiosInstance.get<Job[]>('/api/jobs/', {
         params: { property: propertyId },
-        headers: { Authorization: `Bearer ${accessToken}` },
-        withCredentials: true,
       })
     );
     return response.data;
@@ -112,15 +153,11 @@ export async function fetchJobsForProperty(
   }
 }
 
-export async function searchItems(
-  query: string,
-  accessToken: string
-): Promise<SearchResponse> {
+export async function searchItems(query: string): Promise<SearchResponse> {
   try {
     const response = await retryOperation(() =>
       axiosInstance.get<SearchResponse>('/api/search', {
         params: { q: query },
-        headers: { Authorization: `Bearer ${accessToken}` },
       })
     );
     return response.data;
@@ -129,31 +166,23 @@ export async function searchItems(
     return { jobs: [], properties: [] };
   }
 }
-export async function fetchRooms(query: string, accessToken?: string): Promise<Room[]> {
-  try {
-    // Prepare headers
-    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
-    // Fetch rooms from the API
+export async function createJob(formData: FormData): Promise<Job> {
+  try {
     const response = await retryOperation(() =>
-      axiosInstance.get<Room[]>('/api/rooms/', {
-        params: { search: query },  // Pass the search query
-        headers,  // Add authorization header if available
+      axiosInstance.post<Job>('/api/jobs/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
       })
     );
-
-    // Return the list of rooms
     return response.data;
   } catch (error) {
-    console.error('Error fetching rooms:', error);
-    return []; // Return an empty array if there is an error
+    console.error('Error creating job:', error);
+    throw formatError(error);
   }
 }
-export async function updateJob(
-  jobId: string,
-  jobData: Partial<Job>,
-  accessToken: string
-): Promise<Job> {
+
+export async function updateJob(jobId: string, jobData: Partial<Job>): Promise<Job> {
   const updateData = {
     description: jobData.description,
     priority: jobData.priority,
@@ -171,7 +200,6 @@ export async function updateJob(
   try {
     const response = await retryOperation(() =>
       axiosInstance.put<Job>(`/api/jobs/${jobId}/`, updateData, {
-        headers: { Authorization: `Bearer ${accessToken}` },
         withCredentials: true,
       })
     );
@@ -182,11 +210,10 @@ export async function updateJob(
   }
 }
 
-export async function deleteJob(jobId: string, accessToken: string): Promise<void> {
+export async function deleteJob(jobId: string): Promise<void> {
   try {
     await retryOperation(() =>
       axiosInstance.delete(`/api/jobs/${jobId}/`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
         withCredentials: true,
       })
     );
@@ -196,6 +223,7 @@ export async function deleteJob(jobId: string, accessToken: string): Promise<voi
   }
 }
 
+// Utility function to format API errors
 function formatError(error: unknown): Error {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError;
@@ -208,21 +236,4 @@ function formatError(error: unknown): Error {
     return new Error(axiosError.message);
   }
   return error instanceof Error ? error : new Error('An unexpected error occurred');
-}
-
-export async function createJob(formData: FormData, accessToken: string): Promise<Job> {
-  try {
-    const response = await retryOperation(() =>
-      axiosInstance.post<Job>('/api/jobs/', formData, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        withCredentials: true,
-      })
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error creating job:', error);
-    throw formatError(error);
-  }
 }
