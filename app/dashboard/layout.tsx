@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -26,17 +26,16 @@ import {
 import { Button } from '@/app/components/ui/button';
 import HeaderPropertyList from '@/app/components/jobs/HeaderPropertyList';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/app/components/ui/sheet';
-
 import { Input } from '@/app/components/ui/input';
 import { User } from '@/app/dashboard/user';
 import { cn } from '@/app/lib/utils';
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/dashboard/myJobs", label: "MyJobs", icon: ShoppingCart },
+  { href: "/dashboard/myJobs", label: "My Jobs", icon: ShoppingCart }, //Fixed Space Issue
   { href: "/dashboard/chartdashboad", label: "Chart Dashboard", icon: Package },
   { href: "/dashboard/profile", label: "Profile", icon: Users2 },
-  { href: "/dashboard/createjob", label: "CreateJobs", icon: Plus },
+  { href: "/dashboard/createjob", label: "Create Jobs", icon: Plus },  //Fixed Space Issue
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings }
 ];
@@ -48,20 +47,20 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex min-h-screen bg-background dark:bg-neutral-950">
-      <DesktopNav />
+      <MobileNav />  {/* MobileNav always present, DesktopNav handled inside. */}
+      <DesktopNav /> {/* Desktop Nav */}
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-background dark:bg-neutral-900 px-4 lg:px-6">
-          <div className="flex flex-1 items-center gap-4">
-            <MobileNav />
+        <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-background dark:bg-neutral-900 px-4"> {/*Reduced header padding mobile*/}
+          <div className="flex flex-1 items-center gap-2"> {/* reduced  Header Gap */}
             <DashboardBreadcrumb />
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2"> {/* Reduced  Padding */}
             <SearchInput />
             <HeaderPropertyList />
             <User />
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 p-4"> {/* reduced padding for small screens */}
           <div className="mx-auto max-w-7xl">
             {children}
           </div>
@@ -75,7 +74,7 @@ function DesktopNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex w-[240px] flex-col border-r bg-background dark:bg-neutral-900">
+    <aside className="hidden lg:flex w-[240px] flex-col border-r bg-background dark:bg-neutral-900"> {/*Conditinal Renders for LG to Render*/}
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Package2 className="h-6 w-6" />
@@ -115,17 +114,17 @@ function MobileNav() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="md:hidden"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"  //Hide for Larger Screen to Display on Mobile Devices (Sheet Display)
         >
           <PanelLeft className="h-5 w-5" />
           <span className="sr-only">Toggle navigation menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent 
-        side="left" 
+      <SheetContent
+        side="left"
         className="w-[300px] p-0 border-r bg-white dark:bg-neutral-950"
       >
         {/* Add SheetHeader and SheetTitle components */}
@@ -133,8 +132,8 @@ function MobileNav() {
           <SheetTitle>Navigation Menu</SheetTitle>
         </div>
         <div className="p-6 border-b">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="flex items-center gap-2"
             onClick={() => setOpen(false)}
           >
@@ -173,12 +172,12 @@ function MobileNav() {
 
 function SearchInput() {
   return (
-    <div className="hidden w-full max-w-[300px] lg:flex relative">
+    <div className="w-full lg:w-auto max-w-[300px] relative">  {/* Making search Responsive  (Auto if too big) */}
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         type="search"
         placeholder="Search..."
-        className="pl-8"
+        className="pl-8 w-full"  /* Input Responsive (Occupy Full) */
       />
     </div>
   );
@@ -189,7 +188,7 @@ function DashboardBreadcrumb() {
   const paths = pathname.split('/').filter(Boolean);
 
   return (
-    <Breadcrumb className="hidden md:flex">
+    <Breadcrumb className="md:flex hidden">
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>

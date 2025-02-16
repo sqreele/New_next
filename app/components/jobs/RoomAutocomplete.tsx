@@ -1,3 +1,4 @@
+// RoomAutocomplete.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -28,20 +29,26 @@ interface Room {
 }
 
 interface RoomAutocompleteProps {
-  selectedRoom: Room;
+  selectedRoom: Room | null; // Allow null
   rooms: Room[];
   onSelect: (room: Room) => void;
   disabled?: boolean;
 }
 
-export default function RoomAutocomplete({ 
-  selectedRoom, 
-  rooms, 
+export default function RoomAutocomplete({
+  selectedRoom,
+  rooms,
   onSelect,
-  disabled = false 
+  disabled = false
 }: RoomAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [filteredRooms, setFilteredRooms] = useState<Room[]>(rooms);
+  const [searchValue, setSearchValue] = useState(''); // Add search value state
+
+  // Update filteredRooms when rooms prop changes
+  useEffect(() => {
+    setFilteredRooms(rooms);
+  }, [rooms]);
 
   // Debug logging
   useEffect(() => {
@@ -56,7 +63,8 @@ export default function RoomAutocomplete({
   }, [onSelect]);
 
   const handleSearch = useCallback((search: string) => {
-    const filtered = rooms.filter(room => 
+    setSearchValue(search); // Update search value
+    const filtered = rooms.filter(room =>
       room.name.toLowerCase().includes(search.toLowerCase()) ||
       room.room_type.toLowerCase().includes(search.toLowerCase())
     );
@@ -74,28 +82,32 @@ export default function RoomAutocomplete({
           className="w-full justify-between"
           disabled={disabled}
         >
-          {selectedRoom?.name || "Select room..."}
+          {/* Display selected room name or placeholder */}
+          {selectedRoom ? selectedRoom.name : "Select room..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput 
-            placeholder="Search rooms..." 
+          <CommandInput
+            placeholder="Search rooms..."
             onValueChange={handleSearch}
+            value={searchValue} // Control the input value
           />
           <CommandEmpty>No room found.</CommandEmpty>
           <CommandGroup className="max-h-60 overflow-y-auto">
             {filteredRooms.map((room) => (
               <CommandItem
                 key={room.room_id}
-                value={room.name}
+                // Use room.room_id as the value.  This is what will get passed to onSelect
+                value={String(room.room_id)} // Important: Value must be a string
                 onSelect={() => handleSelect(room)}
                 className="cursor-pointer"
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
+                    // Check against the room_id
                     selectedRoom?.room_id === room.room_id ? "opacity-100" : "opacity-0"
                   )}
                 />

@@ -1,3 +1,4 @@
+// ProfileDisplay.tsx
 'use client';
 
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -15,9 +16,9 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { useUser } from '@/app/lib/user-context';
-import type { Property } from '@/app/lib/types';
+import type { Property, UserProfile } from '@/app/lib/types';
 import { ProfileImage } from '@/app/dashboard/profile/ProfileImage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ProfileFieldProps {
   icon: React.ElementType;
@@ -91,16 +92,15 @@ function GoogleSignInButton() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const result = await signIn('google', {
         callbackUrl: '/dashboard/profile',
         redirect: true,
       });
 
       if (result?.error) {
-        throw new Error(result.error);
+        setError(result.error);
       }
-
     } catch (error) {
       console.error('Google sign-in error:', error);
       setError(error instanceof Error ? error.message : 'Authentication failed');
@@ -150,6 +150,14 @@ function GoogleSignInButton() {
   );
 }
 
+// Create your custom type based on your Alert component
+type AlertVariant = "default" | "destructive" | "info" | null | undefined;
+
+//Update alert to handle a type alert
+interface AlertProps {
+  variant?: AlertVariant;
+}
+
 export default function ProfileDisplay() {
   const { data: session, status } = useSession({
     required: true,
@@ -159,6 +167,13 @@ export default function ProfileDisplay() {
   });
 
   const { userProfile, loading, error } = useUser();
+  const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null); // State to hold UserProfile safely.
+
+    useEffect(() => {
+        if (userProfile) {
+            setLocalUserProfile(userProfile);
+        }
+    }, [userProfile]);
 
   if (loading || status === 'loading') {
     return <LoadingSkeleton />;
@@ -191,7 +206,11 @@ export default function ProfileDisplay() {
     );
   }
 
-  if (!userProfile) return null;
+  if (!localUserProfile) {
+      return <Alert variant="info">
+          <AlertDescription>Loading user profile...</AlertDescription>
+      </Alert>;
+  }
 
   const userData = session.user;
 
@@ -225,7 +244,7 @@ export default function ProfileDisplay() {
         </CardHeader>
         <CardContent className="space-y-8">
           <div className="flex flex-col items-center justify-center space-y-4">
-            <ProfileImage 
+            <ProfileImage
               src={userData.profile_image}
               alt={`${userData.username}'s profile`}
               size="lg"
@@ -246,7 +265,7 @@ export default function ProfileDisplay() {
               {
                 icon: Calendar,
                 label: 'Member Since',
-                value: new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                value: new Date(localUserProfile.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'

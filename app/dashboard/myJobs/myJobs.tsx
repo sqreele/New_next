@@ -50,7 +50,7 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { useToast } from "@/app/components/ui/use-toast";
-import { 
+import {
   AlertCircle,
   Home,
   Plus,
@@ -99,7 +99,7 @@ const useJobsData = (propertyId: string | null, accessToken: string | undefined)
         setIsLoading(false);
         return;
       }
-      
+
       try {
         setIsLoading(true);
         const data = await fetchJobsForProperty(propertyId, accessToken);
@@ -189,9 +189,9 @@ const EditDialog: React.FC<EditDialogProps> = ({
           </div>
         </div>
         <DialogFooter>
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={onClose}
             disabled={isSubmitting}
           >
@@ -225,7 +225,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
       <AlertDialogHeader>
         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
         <AlertDialogDescription>
-          This action cannot be undone. This will permanently delete the maintenance job
+          This action cannot be undone.  This will permanently delete the maintenance job
           and remove it from our servers.
         </AlertDialogDescription>
       </AlertDialogHeader>
@@ -272,7 +272,6 @@ const JobsPagination: React.FC<PaginationProps> = ({
         );
       }
     } else {
-      // Add pagination logic here similar to previous implementation
       // First page
       items.push(
         <PaginationItem key={1}>
@@ -317,7 +316,7 @@ const JobsPagination: React.FC<PaginationProps> = ({
         );
       }
 
-      // Last page
+      // Last page (only if totalPages is greater than 1)
       if (totalPages > 1) {
         items.push(
           <PaginationItem key={totalPages}>
@@ -339,14 +338,14 @@ const JobsPagination: React.FC<PaginationProps> = ({
     <Pagination>
       <PaginationContent>
         <PaginationItem>
-          <PaginationPrevious 
+          <PaginationPrevious
             onClick={() => onPageChange(currentPage - 1)}
             className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
           />
         </PaginationItem>
         {renderPaginationItems()}
         <PaginationItem>
-          <PaginationNext 
+          <PaginationNext
             onClick={() => onPageChange(currentPage + 1)}
             className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
           />
@@ -356,20 +355,21 @@ const JobsPagination: React.FC<PaginationProps> = ({
   );
 };
 
-// Main component
-const MyJobs: React.FC = () => {
+interface MyJobsProps { } // Correct: Added an interface for the component's props
+
+const MyJobs: React.FC<MyJobsProps> = () => {  // Correct: Use the defined interface
   const { toast } = useToast();
   const { data: session } = useSession();
-  const { selectedProperty } = useProperty();
+  const { selectedProperty } = useProperty(); // Corrected: Use selectedProperty
 
   console.log('MyJobs render:', {
-    selectedProperty,
+    selectedProperty, // Corrected: Check selectedProperty
     hasSession: !!session,
     accessToken: session?.user?.accessToken ? 'present' : 'missing'
   });
-  
+
   const { jobs, setJobs, isLoading, error } = useJobsData(
-    selectedProperty,
+    selectedProperty, // Corrected: Pass selectedProperty
     session?.user?.accessToken
   );
 
@@ -384,8 +384,8 @@ const MyJobs: React.FC = () => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, jobs.length);
 
-  // Memoize current jobs to prevent unnecessary recalculations
-  const currentJobs = React.useMemo(() => 
+  // Memoize current jobs
+  const currentJobs = React.useMemo(() =>
     jobs.slice(startIndex, endIndex),
     [jobs, startIndex, endIndex]
   );
@@ -417,40 +417,42 @@ const MyJobs: React.FC = () => {
       });
       return;
     }
-  
+
     setIsSubmitting(true);
     try {
       const formData = new FormData(event.currentTarget);
-      
+
       const updatedJobData = {
         description: formData.get('description') as string,
-        priority: formData.get('priority') as Job['priority'],
+        priority: formData.get('priority') as Job['priority'],  // Correct: Cast to Job['priority']
         remarks: formData.get('remarks') as string || '',
         is_defective: formData.get('is_defective') === 'on',
       };
 
       console.log('Updating job:', {
-        jobId: selectedJob.job_id,
+        jobId: selectedJob.job_id, // Corrected: Use job_id
         updatedData: updatedJobData
       });
 
       const updatedJob = await updateJob(
-        selectedJob.job_id,
+        selectedJob.job_id, // Corrected: Use job_id
         updatedJobData,
         session.user.accessToken
       );
-  
-      setJobs(prevJobs => 
-        prevJobs.map(job => 
-          job.job_id === selectedJob.job_id ? { ...job, ...updatedJob } : job
+
+      // Optimistic update + merging with existing properties
+      setJobs(prevJobs =>
+        prevJobs.map(job =>
+          job.job_id === selectedJob.job_id ? { ...job, ...updatedJob } : job // Corrected: Use job_id
         )
       );
-  
+
       toast({
         title: "Success",
         description: "Maintenance job updated successfully.",
       });
       setIsEditDialogOpen(false);
+      setSelectedJob(null); // Clear selected job after successful edit
     } catch (error) {
       console.error('Error updating job:', error);
       toast({
@@ -463,6 +465,7 @@ const MyJobs: React.FC = () => {
     }
   };
 
+
   const handleDeleteConfirm = async () => {
     if (!selectedJob || !session?.user?.accessToken) {
       console.log('Delete confirmation failed:', {
@@ -474,15 +477,21 @@ const MyJobs: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await deleteJob(selectedJob.job_id, session.user.accessToken);
+      await deleteJob(selectedJob.job_id, session.user.accessToken); // Corrected: Use job_id
 
-      setJobs(prevJobs => prevJobs.filter(job => job.job_id !== selectedJob.job_id));
+      setJobs(prevJobs => prevJobs.filter(job => job.job_id !== selectedJob.job_id)); // Corrected: Use job_id
+       // Adjust current page if necessary
+      if (currentJobs.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
 
       toast({
         title: "Success",
         description: "Maintenance job deleted successfully.",
       });
       setIsDeleteDialogOpen(false);
+      setSelectedJob(null); // Clear selected job
+
     } catch (error) {
       console.error('Error deleting job:', error);
       toast({
@@ -495,13 +504,15 @@ const MyJobs: React.FC = () => {
     }
   };
 
+
+  // Display a message if no property is selected
   if (!selectedProperty) {
     return (
       <div className="p-6 text-center">
         <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-medium">No Property Selected</h3>
         <p className="text-muted-foreground mt-1">
-          Please select a property to view maintenance jobs
+          Please select a property to view maintenance jobs.
         </p>
       </div>
     );
@@ -525,6 +536,8 @@ const MyJobs: React.FC = () => {
     );
   }
 
+
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-6 mb-6">
@@ -535,6 +548,7 @@ const MyJobs: React.FC = () => {
               Viewing {jobs.length} maintenance request{jobs.length !== 1 ? 's' : ''}
             </p>
           </div>
+          {/* Placeholder for Add Job button */}
           <Button className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             New Maintenance Request
@@ -542,6 +556,7 @@ const MyJobs: React.FC = () => {
         </div>
       </div>
 
+      {/* Conditional rendering based on jobs */}
       {jobs.length > 0 ? (
         <>
           <div className="border rounded-lg">
@@ -563,13 +578,16 @@ const MyJobs: React.FC = () => {
                       <div className="space-y-1">
                         <div className="text-xs">#{job.job_id}</div>
                         <Badge variant={PRIORITY_VARIANTS[job.priority]}>
+                          {/* Capitalize the first letter of priority */}
                           {job.priority.charAt(0).toUpperCase() + job.priority.slice(1)}
                         </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[300px] space-y-1">
+                        {/* Truncate long descriptions */}
                         <p className="text-sm truncate">{job.description}</p>
+                        {/* Display related topics */}
                         {job.topics?.map((topic) => (
                           <Badge key={topic.id} variant="outline" className="text-xs">
                             {topic.title}
@@ -578,6 +596,7 @@ const MyJobs: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
+                      {/* Display room information */}
                       {job.rooms?.map((room) => (
                         <div key={room.room_id} className="flex items-center gap-1">
                           <Home className="h-4 w-4" />
@@ -587,10 +606,13 @@ const MyJobs: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANTS[job.status] || 'default'}>
-  {job.status.replace('_', ' ').charAt(0).toUpperCase() + job.status.replace('_', ' ').slice(1)}
-</Badge>
+                        {/* Format status for display (replace underscores, capitalize) */}
+                        {job.status.replace('_', ' ').charAt(0).toUpperCase() + job.status.replace('_', ' ').slice(1)}
+                      </Badge>
                     </TableCell>
+
                     <TableCell>
+                      {/* Display creation date */}
                       {new Date(job.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
@@ -619,17 +641,19 @@ const MyJobs: React.FC = () => {
             </Table>
           </div>
 
+          {/* Edit Dialog */}
           <EditDialog
             isOpen={isEditDialogOpen}
-            onClose={() => setIsEditDialogOpen(false)}
+            onClose={() => { setIsEditDialogOpen(false); setSelectedJob(null) }} // Clear selectedJob on close
             job={selectedJob}
             onSubmit={handleEditSubmit}
             isSubmitting={isSubmitting}
           />
 
+          {/* Delete Dialog */}
           <DeleteDialog
             isOpen={isDeleteDialogOpen}
-            onClose={() => setIsDeleteDialogOpen(false)}
+            onClose={() => { setIsDeleteDialogOpen(false); setSelectedJob(null) }} // Clear selectedJob on close
             onConfirm={handleDeleteConfirm}
             isSubmitting={isSubmitting}
           />
@@ -646,6 +670,7 @@ const MyJobs: React.FC = () => {
           </div>
         </>
       ) : (
+        // Displayed when there are no maintenance jobs
         <div className="text-center p-12 border rounded-lg bg-background">
           <div className="flex flex-col items-center text-center">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />

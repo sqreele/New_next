@@ -1,3 +1,4 @@
+// data.ts (or your API file)
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { getSession, signOut } from 'next-auth/react';
 import { Job, Property, Room } from '@/app/lib/types';
@@ -44,7 +45,7 @@ axiosInstance.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config;
-    
+
     if (!originalRequest) {
       return Promise.reject(error);
     }
@@ -61,8 +62,8 @@ axiosInstance.interceptors.response.use(
 
       try {
         const session = await getSession();
-        if (session?.error === "RefreshAccessTokenError") {
-          await signOut({ redirect: true, callbackUrl: "/signin" });
+        if (session?.error === 'RefreshAccessTokenError') {
+          await signOut({ redirect: true, callbackUrl: '/signin' });
           return Promise.reject(new Error('Session expired. Please sign in again.'));
         }
 
@@ -73,7 +74,8 @@ axiosInstance.interceptors.response.use(
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
-        await signOut({ redirect: true, callbackUrl: "/signin" });
+        console.error('Error refreshing token:', refreshError);
+        await signOut({ redirect: true, callbackUrl: '/signin' });
         return Promise.reject(new Error('Failed to refresh authentication.'));
       }
     }
@@ -96,15 +98,17 @@ async function retryOperation<T>(
       await new Promise(resolve => setTimeout(resolve, delay));
       return retryOperation(operation, retries - 1, delay * 2);
     }
-    throw error;
+    throw error;  // After max retries, throw the error
   }
 }
 
 // API Functions
-export async function fetchJobs(): Promise<Job[]> {
+export async function fetchJobs(accessToken?: string): Promise<Job[]> { // Optional accessToken
   try {
     const response = await retryOperation(() =>
-      axiosInstance.get<Job[]>('/api/jobs/')
+      axiosInstance.get<Job[]>('/api/jobs/', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
+      })
     );
     return response.data;
   } catch (error) {
@@ -113,10 +117,13 @@ export async function fetchJobs(): Promise<Job[]> {
   }
 }
 
-export async function fetchProperties(): Promise<Property[]> {
+export async function fetchProperties(accessToken?: string): Promise<Property[]> { // Optional accessToken
   try {
     const response = await retryOperation(() =>
-      axiosInstance.get<Property[]>('/api/properties/')
+      axiosInstance.get<Property[]>('/api/properties/', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
+
+      })
     );
     return response.data;
   } catch (error) {
@@ -125,11 +132,12 @@ export async function fetchProperties(): Promise<Property[]> {
   }
 }
 
-export async function fetchRooms(query: string = ''): Promise<Room[]> {
+export async function fetchRooms(query: string = '', accessToken?: string): Promise<Room[]> { // Optional accessToken
   try {
     const response = await retryOperation(() =>
       axiosInstance.get<Room[]>('/api/rooms/', {
         params: { search: query },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
       })
     );
     return response.data;
@@ -139,11 +147,12 @@ export async function fetchRooms(query: string = ''): Promise<Room[]> {
   }
 }
 
-export async function fetchJobsForProperty(propertyId: string): Promise<Job[]> {
+export async function fetchJobsForProperty(propertyId: string, accessToken?: string): Promise<Job[]> { // Optional accessToken
   try {
     const response = await retryOperation(() =>
       axiosInstance.get<Job[]>('/api/jobs/', {
         params: { property: propertyId },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
       })
     );
     return response.data;
@@ -153,11 +162,12 @@ export async function fetchJobsForProperty(propertyId: string): Promise<Job[]> {
   }
 }
 
-export async function searchItems(query: string): Promise<SearchResponse> {
+export async function searchItems(query: string, accessToken?: string): Promise<SearchResponse> {  // Optional accessToken
   try {
     const response = await retryOperation(() =>
       axiosInstance.get<SearchResponse>('/api/search', {
         params: { q: query },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
       })
     );
     return response.data;
@@ -167,12 +177,15 @@ export async function searchItems(query: string): Promise<SearchResponse> {
   }
 }
 
-export async function createJob(formData: FormData): Promise<Job> {
+export async function createJob(formData: FormData, accessToken?: string): Promise<Job> {  // Optional accessToken
   try {
     const response = await retryOperation(() =>
       axiosInstance.post<Job>('/api/jobs/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), // Include Authorization if accessToken is present
+        },
+         // Keep withCredentials for multipart/form-data
       })
     );
     return response.data;
@@ -182,7 +195,7 @@ export async function createJob(formData: FormData): Promise<Job> {
   }
 }
 
-export async function updateJob(jobId: string, jobData: Partial<Job>): Promise<Job> {
+export async function updateJob(jobId: string, jobData: Partial<Job>, accessToken?: string): Promise<Job> {  // Optional accessToken
   const updateData = {
     description: jobData.description,
     priority: jobData.priority,
@@ -200,7 +213,7 @@ export async function updateJob(jobId: string, jobData: Partial<Job>): Promise<J
   try {
     const response = await retryOperation(() =>
       axiosInstance.put<Job>(`/api/jobs/${jobId}/`, updateData, {
-        withCredentials: true,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
       })
     );
     return response.data;
@@ -210,11 +223,11 @@ export async function updateJob(jobId: string, jobData: Partial<Job>): Promise<J
   }
 }
 
-export async function deleteJob(jobId: string): Promise<void> {
+export async function deleteJob(jobId: string, accessToken?: string): Promise<void> {  // Optional accessToken
   try {
     await retryOperation(() =>
       axiosInstance.delete(`/api/jobs/${jobId}/`, {
-        withCredentials: true,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, // Use accessToken if provided
       })
     );
   } catch (error) {

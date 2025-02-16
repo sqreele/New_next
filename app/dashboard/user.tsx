@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react'; // Import useCallback
 import { signOut, useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { User2, Settings, UserCircle, BriefcaseIcon } from 'lucide-react';
@@ -45,7 +45,7 @@ export function User() {
     );
   }
 
-  if (!userProfile || !session?.user) {
+  if (!session?.user) {
     debugLog('Unauthenticated State', { timestamp: new Date().toISOString() });
     return (
       <Button variant="ghost" asChild>
@@ -54,50 +54,52 @@ export function User() {
     );
   }
 
-  const profileImage = session.user.profile_image || userProfile.profile_image || null;
-  const displayName = session.user.username || userProfile.username;
-  const userEmail = session.user.email || userProfile.email;
-  const userPosition = session.user.positions || userProfile.positions;
+  const profileImage = session.user.profile_image || userProfile?.profile_image || null;  // Safe chaining here.  userProfile could be undefined
+  const displayName = session.user.username || userProfile?.username;          // And here
+  const userEmail = session.user.email || userProfile?.email;                  // And here
+  const userPosition = session.user.positions || userProfile?.positions;          // and here
 
-  debugLog('User Data', { 
+  debugLog('User Data', {
     profileImage: !!profileImage,
     displayName,
     hasEmail: !!userEmail,
     hasPosition: !!userPosition,
   });
 
-  const handleSignOut = async () => {
-    try {
-      debugLog('SignOut Started', { timestamp: new Date().toISOString() });
-      
-      // Clear any stored tokens
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      
-      await signOut({ 
-        callbackUrl: '/auth/signin',
-        redirect: true
-      });
-      
-      debugLog('SignOut Completed', { 
-        redirectTo: '/auth/signin',
-        timestamp: new Date().toISOString() 
-      });
-    } catch (error) {
-      debugLog('SignOut Error', { 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      });
-      console.error('Error signing out:', error);
-    }
-  };
+    // Use useCallback for handleSignOut for stability and prevent re-renders
+    const handleSignOut = useCallback(async () => {
+        try {
+            debugLog('SignOut Started', { timestamp: new Date().toISOString() });
+
+            // Clear any stored tokens
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+
+            await signOut({
+                callbackUrl: '/auth/signin',
+                redirect: true
+            });
+
+            debugLog('SignOut Completed', {
+                redirectTo: '/auth/signin',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'; //Safely unwrap
+            debugLog('SignOut Error', {
+                error: errorMessage,
+                timestamp: new Date().toISOString()
+            });
+            console.error('Error signing out:', error);
+        }
+    }, [signOut]);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="relative h-8 w-8 rounded-full ring-2 ring-offset-2 ring-offset-background hover:ring-primary/80 transition-all"
         >
           {profileImage ? (
