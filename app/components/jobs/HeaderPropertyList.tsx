@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Building2 } from 'lucide-react';
 import {
   Sheet,
@@ -18,54 +18,44 @@ import {
 } from '@/app/components/ui/select';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
-import { fetchProperties } from '@/app/lib/data';
-import { Property } from '@/app/lib/types';
-import { Room } from '@/app/lib/types';
+// Removed the import statement that is no longer needed
+// import { fetchProperties } from '@/app/lib/data';
+import { Property, Room } from '@/app/lib/types'; //Import Room Type
 import { useProperty } from '@/app/lib/PropertyContext';
 
 const HeaderPropertyList: React.FC = () => {
-  const { selectedProperty, setSelectedProperty } = useProperty(); // Use PropertyContext
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { selectedProperty, setSelectedProperty, properties, isLoading, error, refetchProperties } = useProperty(); // Use PropertyContext
 
-  useEffect(() => {
-    const loadProperties = async () => {
-      try {
-        const data = await fetchProperties();
-        setProperties(data);
-
-        if (data.length > 0 && !selectedProperty) {
-          setSelectedProperty(data[0].property_id); // Set the first property as default
-        }
-      } catch (err) {
-        console.error('Error fetching properties:', err);
-        setError('Failed to load properties. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProperties();
-  }, [selectedProperty, setSelectedProperty]);
-
-  const handlePropertyChange = (value: string) => {
+  const handlePropertyChange = useCallback((value: string) => {
     setSelectedProperty(value);
-  };
+  }, [setSelectedProperty]);
 
-  const getRoomTypeCounts = (rooms: Room[]) => {
+  const getRoomTypeCounts = useCallback((rooms: Room[]) => { // useCallback for memoization
     return rooms.reduce((acc, room) => {
       acc[room.room_type] = (acc[room.room_type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-  };
+  }, []);
 
-  const sortedProperties = useMemo(
-    () => [...properties].sort((a, b) => a.name.localeCompare(b.name)),
+  const sortedProperties = useMemo( // Use existing properties from context
+    () => {
+      // More robust check to ensure properties is an array before spreading
+      if (Array.isArray(properties)) {
+        return [...properties].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      return []; // Return empty array if properties is not an array or null
+    },
     [properties]
   );
 
-  if (loading) {
+  useEffect(() => {
+    if (!properties && !isLoading && !error) {
+      refetchProperties(); // Fetch properties if not already loaded
+    }
+  }, [properties, isLoading, error, refetchProperties]);
+
+
+  if (isLoading) {
     return (
       <div className="flex items-center">
         <Button variant="ghost" disabled className="w-[180px] gap-2">
@@ -73,14 +63,14 @@ const HeaderPropertyList: React.FC = () => {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          Loading
+          Loading Properties
         </Button>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-red-500 text-sm">{error}</div>;
+    return <div className="text-red-500 text-sm">Error loading properties: {error}</div>;
   }
 
   const renderPropertySelector = () => {
@@ -100,7 +90,7 @@ const HeaderPropertyList: React.FC = () => {
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {sortedProperties.map((property) => {
+          {sortedProperties.map((property: Property) => { // Explicitly type 'property' as Property
             const roomTypeCounts = getRoomTypeCounts(property.rooms);
             return (
               <SelectItem
@@ -111,8 +101,11 @@ const HeaderPropertyList: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <span className="font-medium">{property.name}</span>
                   <div className="flex flex-col gap-0.5">
-                    
-                   
+                    {Object.entries(roomTypeCounts).map(([type, count]) => (
+                      <Badge key={type} variant="secondary">
+                        {type}: {count}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               </SelectItem>

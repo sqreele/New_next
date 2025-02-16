@@ -1,6 +1,5 @@
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import jwt, { JwtPayload } from "jsonwebtoken";
 import type { NextAuthOptions } from "next-auth";
 import axios from 'axios';
 
@@ -29,20 +28,16 @@ const API_URL = typeof window === 'undefined'
   ? process.env.NEXT_PRIVATE_API_URL || 'http://django-backend:8000'
   : process.env.NEXT_PUBLIC_API_URL || 'https://pmcs.site';
 
-// Ensure secrets are available
+// Ensure secrets are available - ONLY NEXTAUTH_SECRET needed for NextAuth's JWT
 const getSecrets = () => {
-  const JWT_SECRET = process.env.JWT_SECRET;
   const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 
-  if (!JWT_SECRET || !NEXTAUTH_SECRET) {
-    console.error('Missing required environment variables:', {
-      JWT_SECRET: !!JWT_SECRET,
-      NEXTAUTH_SECRET: !!NEXTAUTH_SECRET,
-    });
-    throw new Error("Required secrets are not defined in environment variables");
+  if (!NEXTAUTH_SECRET) {
+    console.error('Missing required environment variable: NEXTAUTH_SECRET');
+    throw new Error("Required secret NEXTAUTH_SECRET is not defined in environment variables");
   }
 
-  return { JWT_SECRET, NEXTAUTH_SECRET };
+  return { NEXTAUTH_SECRET }; // Only return NEXTAUTH_SECRET
 };
 
 // Create axios instance with environment-aware configuration
@@ -58,7 +53,7 @@ const api = axios.create({
   validateStatus: (status) => status >= 200 && status < 500,
 });
 
-// Add request/response interceptors with timestamps
+// Add request/response interceptors with timestamps (Keep these for debugging)
 api.interceptors.request.use(
   (config) => {
     const timestamp = new Date().toISOString();
@@ -93,17 +88,16 @@ api.interceptors.response.use(
   }
 );
 
-// NextAuth type declarations
+// NextAuth type declarations (Keep these)
 declare module "next-auth" {
   interface Session {
     user: AuthUser;
     error?: string;
   }
-
   interface User extends AuthUser {}
 }
 
-// Helper function for token refresh
+// Helper function for token refresh (Keep this)
 async function refreshAccessToken(token: any) {
   try {
     const response = await api.post('/api/v1/token/refresh/', {
@@ -125,16 +119,7 @@ async function refreshAccessToken(token: any) {
   }
 }
 
-// Verify JWT token helper
-const verifyToken = (token: string): JwtPayload | null => {
-  try {
-    const { JWT_SECRET } = getSecrets();
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
-  } catch (error) {
-    console.error("Token verification failed:", error);
-    return null;
-  }
-};
+// Removed verifyToken function - Let NextAuth handle JWT verification
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -226,7 +211,7 @@ export const authOptions: NextAuthOptions = {
             user.refreshToken = response.data.refresh;
             user.positions = response.data.positions || user.positions;
             user.properties = response.data.properties || user.properties;
-            
+
             console.log(`[${timestamp}] ✅ Successfully authenticated with Google: ${profile?.email}`);
             return true;
           }
@@ -258,14 +243,14 @@ export const authOptions: NextAuthOptions = {
         });
       }
 
-      if (token.accessToken) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const decoded = verifyToken(token.accessToken as string);
-
-        if (decoded?.exp && currentTime >= decoded.exp - 300) {
-          return refreshAccessToken(token);
-        }
-      }
+      // Removed redundant verifyToken call - Let NextAuth handle JWT verification
+      // if (token.accessToken) {
+      //   const currentTime = Math.floor(Date.now() / 1000);
+      //   const decoded = verifyToken(token.accessToken as string);
+      //   if (decoded?.exp && currentTime >= decoded.exp - 300) {
+      //     return refreshAccessToken(token);
+      //   }
+      // }
 
       return token;
     },
@@ -306,7 +291,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 1 * 24 * 60 * 60, // 1 day
   },
 
-  secret: getSecrets().NEXTAUTH_SECRET,
+  secret: getSecrets().NEXTAUTH_SECRET, // Correctly use NEXTAUTH_SECRET
   debug: process.env.NODE_ENV === "development",
 };
 
