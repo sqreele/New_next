@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { Job, Property } from '@/app/lib/types';
-
+import { Room } from '@/app/lib/types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
@@ -127,7 +127,26 @@ export async function searchItems(
     return { jobs: [], properties: [] };
   }
 }
+export async function fetchRooms(query: string, accessToken?: string): Promise<Room[]> {
+  try {
+    // Prepare headers
+    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
+    // Fetch rooms from the API
+    const response = await retryOperation(() =>
+      axiosInstance.get<Room[]>('/api/rooms/', {
+        params: { search: query },  // Pass the search query
+        headers,  // Add authorization header if available
+      })
+    );
+
+    // Return the list of rooms
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    return []; // Return an empty array if there is an error
+  }
+}
 export async function updateJob(
   jobId: string,
   jobData: Partial<Job>,

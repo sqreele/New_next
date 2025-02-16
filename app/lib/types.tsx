@@ -77,7 +77,8 @@ export interface UserProfile {
   positions: string;
   properties: Property[];
   email?: string | null;
-}
+  created_at: string;
+ }
 
 export interface UserContextType {
   userProfile: UserProfile | null;

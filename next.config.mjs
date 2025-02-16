@@ -53,15 +53,14 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-<<<<<<< HEAD
+
   output: 'standalone', // For Docker optimization
   webpackDevMiddleware: config => {
     config.stats = 'normal'; // Or 'verbose' for more detailed logs
     return config;
   },
-=======
-  //output: 'standalone', // For Docker optimization
->>>>>>> d1e565e (add rebase)
+  output: 'standalone', // For Docker optimization
+
 };
 
 export default nextConfig;

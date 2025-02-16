@@ -23,18 +23,17 @@ import {
   BreadcrumbSeparator
 } from '@/app/components/ui/breadcrumb';
 import { Button } from '@/app/components/ui/button';
-import  HeaderPropertyList from '@/app/components/jobs/HeaderPropertyList';
-import { Sheet, SheetContent, SheetTrigger,SheetTitle } from '@/app/components/ui/sheet';
+import HeaderPropertyList from '@/app/components/jobs/HeaderPropertyList';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/app/components/ui/sheet';
 
 import { Input } from '@/app/components/ui/input';
 import { User } from '@/app/dashboard/user';
 import { cn } from '@/app/lib/utils';
-;
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/dashboard/myJobs", label: "MyJobs", icon: ShoppingCart },
-  { href: "/dashboard/chartdashboad", label: "chartdashboad", icon: Package },
+  { href: "/dashboard/chartdashboad", label: "Chart Dashboard", icon: Package },
   { href: "/dashboard/profile", label: "Profile", icon: Users2 },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings }
@@ -46,10 +45,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background dark:bg-neutral-950">
       <DesktopNav />
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-background px-4 lg:px-6">
+        <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-background dark:bg-neutral-900 px-4 lg:px-6">
           <div className="flex flex-1 items-center gap-4">
             <MobileNav />
             <DashboardBreadcrumb />
@@ -57,7 +56,6 @@ export default function DashboardLayout({
           <div className="flex items-center gap-4">
             <SearchInput />
             <HeaderPropertyList />
-           
             <User />
           </div>
         </header>
@@ -75,7 +73,7 @@ function DesktopNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex w-[240px] flex-col border-r bg-background">
+    <aside className="hidden lg:flex w-[240px] flex-col border-r bg-background dark:bg-neutral-900">
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Package2 className="h-6 w-6" />
@@ -92,8 +90,8 @@ function DesktopNav() {
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                  isActive 
-                    ? "bg-primary text-primary-foreground" 
+                  isActive
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
@@ -154,8 +152,8 @@ function MobileNav() {
                   onClick={() => setOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    isActive 
-                      ? "bg-primary text-primary-foreground" 
+                    isActive
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >

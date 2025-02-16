@@ -2,20 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Property } from '@/app/lib/types';
-
+import { UserProfile } from '@/app/lib/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const CACHE_DURATION = 5 * 60 * 1000;
 
-export interface UserProfile {
- id: number;
- username: string;
- profile_image: string;
- positions: string;
- properties: Property[];
- email?: string | null;
- created_at: string;
-}
+
 
 export interface UserContextType {
  userProfile: UserProfile | null;

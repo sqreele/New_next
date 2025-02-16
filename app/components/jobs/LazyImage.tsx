@@ -23,7 +23,9 @@ export function LazyImage({
   const [error, setError] = useState(false);
 
   // Handle the image source URL
-  const imageUrl = src.startsWith('http') ? src : `https://pmcs.site${src}`;
+  const imageUrl = src.startsWith('http') 
+  ? src 
+  : `${process.env.NEXT_PUBLIC_API_URL}/media${src}`;
 
   if (error) {
     return (
