@@ -1,5 +1,3 @@
-//Create/page.tsx
-
 'use client';
 
 import { useState } from 'react';
@@ -134,6 +132,7 @@ export default function CreateJobPage() {
           >
             {({ values, errors, touched, setFieldValue, isSubmitting }) => (
               <Form className="space-y-6">
+                {/* Description Field */}
                 <div>
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -148,6 +147,7 @@ export default function CreateJobPage() {
                   )}
                 </div>
 
+                {/* Status and Priority Select Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Status</Label>
@@ -186,6 +186,7 @@ export default function CreateJobPage() {
                   </div>
                 </div>
 
+                {/* Room Field */}
                 <div>
                   <Label>Room</Label>
                   <RoomAutocomplete
@@ -197,15 +198,18 @@ export default function CreateJobPage() {
                   )}
                 </div>
 
+                {/* File Upload */}
                 <div>
                   <Label>Images</Label>
                   <FileUpload
-                    onFileSelect={(files) => setFieldValue('files', files)}
+                    files={values.files}
+                    onFileChange={(files) => setFieldValue('files', files)}
                     error={errors.files as string}
                     touched={!!touched.files} // Convert to boolean
-                    />
+                  />
                 </div>
 
+                {/* Defective Checkbox */}
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="is_defective"
@@ -215,6 +219,7 @@ export default function CreateJobPage() {
                   <Label htmlFor="is_defective">Mark as defective</Label>
                 </div>
 
+                {/* Buttons */}
                 <div className="flex justify-end space-x-4">
                   <Button
                     type="button"

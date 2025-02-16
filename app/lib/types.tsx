@@ -30,12 +30,10 @@ export interface Room {
   room_id: number;
   name: string;
   room_type: string;
+  properties: string[];
   is_active: boolean;
   created_at: string;
   property: number;
-  properties: (string | number)[];
-  
-
 }
 
 export interface Job {
