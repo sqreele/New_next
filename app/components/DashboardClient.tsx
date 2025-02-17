@@ -1,13 +1,18 @@
-// app/dashboard/DashboardClient.tsx
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import JobsContent from '@/app/dashboard/JobsContent';
+import type { Job, Property } from '@/app/lib/types';
 
+// Define props interface using the proper types
+interface DashboardClientProps {
+  jobs: Job[];
+  properties: Property[];
+}
 
-export default function DashboardClient({ jobs, properties }: { jobs: any; properties: any }) {
+export default function DashboardClient({ jobs, properties }: DashboardClientProps) {
   const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
@@ -15,8 +20,12 @@ export default function DashboardClient({ jobs, properties }: { jobs: any; prope
     },
   });
 
-  // Debugging the session
-  console.log('Session:', session);
+  useEffect(() => {
+    if (status === 'authenticated' && session?.error === 'RefreshTokenError') {
+      console.error('Refresh token failed. Signing out user.');
+      signOut();
+    }
+  }, [session, status]);
 
   if (status === 'loading') {
     return <div>Loading...</div>;
@@ -29,7 +38,11 @@ export default function DashboardClient({ jobs, properties }: { jobs: any; prope
   return (
     <div className="space-y-4">
       <Suspense fallback={<div>Loading...</div>}>
-        <JobsContent jobs={jobs} properties={properties} />
+        <JobsContent 
+          jobs={jobs} 
+          properties={properties} 
+          session={session}
+        />
       </Suspense>
     </div>
   );

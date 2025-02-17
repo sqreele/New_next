@@ -1,4 +1,5 @@
 import { DateRange } from "react-day-picker";
+import { Session } from 'next-auth';
 
 // Profile-related types
 export interface ProfileImage {
@@ -189,3 +190,9 @@ export interface SearchResponse {
   jobs: Job[];
   properties: Property[];
 }
+export interface JobsContentProps {
+  jobs: Job[];
+  properties: Property[];
+  session: Session;
+}
+

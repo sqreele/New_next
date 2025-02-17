@@ -23,15 +23,15 @@ export const metadata: Metadata = {
   keywords: ['admin', 'dashboard', 'nextjs', 'react', 'typescript'],
   authors: [
     {
-      name: 'Your Name', // Consider using your actual name or organization name
-      url: 'https://your-website.com', // Consider using your actual website or portfolio URL
+      name: 'Your Organization Name', // Example: 'Acme Corp'
+      url: 'https://www.acmecorp.com', // Example: 'https://www.acmecorp.com'
     },
   ],
-  creator: 'Your Name', // Consider using your actual name or organization name
+  creator: 'Your Name', // Example: 'Acme Corp'
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://your-website.com', // Consider using your actual website URL
+    url: 'https://www.acmecorp.com', // Example: 'https://www.acmecorp.com'
     title: 'Admin Dashboard',
     description: 'A user admin dashboard configured with Next.js, Postgres, NextAuth, Tailwind CSS, TypeScript, and Prettier.',
     siteName: 'Admin Dashboard',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Admin Dashboard',
     description: 'A user admin dashboard configured with Next.js, Postgres, NextAuth, Tailwind CSS, TypeScript, and Prettier.',
-    creator: '@yourtwitter', // Consider using your actual Twitter handle
+    creator: '@yourcompanytwitter', // Example: '@acmecorp'
   },
 };
 
