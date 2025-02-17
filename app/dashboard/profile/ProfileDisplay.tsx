@@ -2,8 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import Image from 'next/image';
-import { User2, Mail, Calendar, Shield, Pencil, Building2, Users } from 'lucide-react';
+import { Mail, Calendar, Shield, Pencil, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import {
@@ -17,7 +16,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { useUser } from '@/app/lib/user-context';
 import type { Property } from '@/app/lib/types';
-
+import { ProfileImage } from '@/app/dashboard/profile/ProfileImage';
 interface ProfileFieldProps {
   icon: React.ElementType;
   label: string;
@@ -121,20 +120,12 @@ export default function ProfileDisplay() {
         </CardHeader>
         <CardContent className="space-y-8">
           <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="relative h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-              {userProfile.profile_image ? (
-                <Image
-                  src={userProfile.profile_image}
-                  alt={`${userProfile.username}'s profile`}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
-                  priority
-                />
-              ) : (
-                <User2 className="h-12 w-12 text-muted-foreground" />
-              )}
-            </div>
+            {/* Replace Image and User2 logic with ProfileImage Component */}
+            <ProfileImage
+              src={userProfile.profile_image}
+              alt={`${userProfile.username}'s profile`}
+              size="lg" // Or 'md' or 'sm' as needed
+            />
             <div className="text-center">
               <h3 className="text-xl font-semibold">{userProfile.username}</h3>
               <Badge variant="secondary" className="mt-2">{userProfile.positions}</Badge>
@@ -146,9 +137,9 @@ export default function ProfileDisplay() {
               { icon: User2, label: 'Username', value: userProfile.username },
               { icon: Mail, label: 'Email', value: userProfile.email },
               { icon: Shield, label: 'Position', value: userProfile.positions },
-              { 
-                icon: Calendar, 
-                label: 'Member Since', 
+              {
+                icon: Calendar,
+                label: 'Member Since',
                 value: new Date(userProfile.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',

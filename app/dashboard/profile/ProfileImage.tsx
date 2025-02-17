@@ -6,38 +6,39 @@ import Image from 'next/image';
 import { User2 } from 'lucide-react';
 
 interface ProfileImageProps {
-  src: string | null;
+  src: string | null | undefined; // Allow null or undefined src
   alt: string;
   size?: 'sm' | 'md' | 'lg';
+  className?: string; // Allow extra className for customization
 }
 
 const sizes = {
-  sm: { container: 'w-16 h-16', icon: 'h-8 w-8' },
+  sm: { container: 'w-12 h-12', icon: 'h-6 w-6' }, // Adjusted sizes for 'sm'
   md: { container: 'w-24 h-24', icon: 'h-12 w-12' },
   lg: { container: 'w-32 h-32', icon: 'h-16 w-16' },
 };
 
-export function ProfileImage({ src, alt, size = 'md' }: ProfileImageProps) {
+export function ProfileImage({ src, alt, size = 'md', className }: ProfileImageProps) {
   const [error, setError] = useState(false);
   const { container, icon } = sizes[size];
 
-  if (!src || error) {
-    return (
-      <div className={`${container} rounded-full bg-muted flex items-center justify-center`}>
-        <User2 className={`${icon} text-muted-foreground`} />
-      </div>
-    );
-  }
+  const imageSrc = src || ''; // Treat null or undefined src as empty string for Image component
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      width={96}
-      height={96}
-      className={`${container} rounded-full object-cover border-2 border-muted`}
-      onError={() => setError(true)}
-      priority
-    />
+    <div className={`${container} relative rounded-full bg-muted flex items-center justify-center overflow-hidden ${className || ''}`}>
+      {imageSrc && !error ? ( // Only render Image if src is truthy and no error
+        <Image
+          src={imageSrc}
+          alt={alt}
+          fill // Use fill and parent container for responsive sizing
+          sizes="100%" // Ensure image takes full width and height of container
+          className="rounded-full object-cover"
+          onError={() => setError(true)}
+          priority
+        />
+      ) : (
+        <User2 className={`${icon} absolute text-muted-foreground`} /> // Absolute positioning for icon inside container
+      )}
+    </div>
   );
 }

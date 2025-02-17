@@ -1,3 +1,4 @@
+// app/components/User.tsx
 'use client';
 
 import React, { useCallback } from 'react'; // Import useCallback
@@ -71,9 +72,9 @@ export function User() {
         try {
             debugLog('SignOut Started', { timestamp: new Date().toISOString() });
 
-            // Clear any stored tokens
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
+            // Clear any stored tokens - Not usually needed with NextAuth's default setup
+            // localStorage.removeItem('accessToken');
+            // localStorage.removeItem('refreshToken');
 
             await signOut({
                 callbackUrl: '/auth/signin',
@@ -92,7 +93,7 @@ export function User() {
             });
             console.error('Error signing out:', error);
         }
-    }, [signOut]);
+    }, []); // Corrected dependency array: []
 
   return (
     <DropdownMenu>
